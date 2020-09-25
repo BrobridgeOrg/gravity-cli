@@ -14,7 +14,16 @@ var (
 		Long:  `Gravity-cli tool by daginwu in Brobridge`,
 	}
 
-	database string
+	gravitydbs = []string{
+		"postgreSQL",
+		"mysql-1",
+		"mysql-2",
+		"MSSQL",
+		"BrobridgeSQL",
+	}
+
+	dbFlag  string
+	allFlag bool
 )
 
 func main() {
@@ -22,13 +31,16 @@ func main() {
 }
 
 func init() {
+	listCmd.Flags().StringVarP(&dbFlag, "dbinfo", "d", "", "Database information")
+	listCmd.Flags().BoolVarP(&allFlag, "alldbinfo", "a", false, "All Database information")
+
+	recoverCmd.Flags().StringVarP(&dbFlag, "dbinfo", "d", "", "Recover Database")
+	recoverCmd.Flags().BoolVarP(&allFlag, "alldbinfo", "a", false, "Recover all Database")
 
 	rootCmd.AddCommand(storeCmd)
 	storeCmd.AddCommand(listCmd)
 	storeCmd.AddCommand(recoverCmd)
 
-	// listCmd.Flags().StringVarP(&database, "database", "db", "", "Database name")
-	// recoverCmd.Flags().StringVarP(&database, "database", "db", "", "Database name")
 }
 
 func Execute() {
@@ -43,9 +55,25 @@ var listCmd = &cobra.Command{
 	Short: "List all database control by gravity",
 	Long:  `List all database control by gravity`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("==============================")
-		fmt.Println("=========LIST DATABASE========")
-		fmt.Println("==============================")
+		if allFlag {
+
+			fmt.Println("=========ALL DATABASE=========")
+			for _, db := range gravitydbs {
+				fmt.Println(db)
+			}
+			fmt.Println("==============================")
+		} else {
+			// TODO: check dbFLag is null
+
+			fmt.Println("=========LIST DATABASE========")
+			_, found := Find(gravitydbs, dbFlag)
+			if !found {
+				fmt.Println("Gravity not manage this db !")
+			} else {
+				fmt.Println(dbFlag)
+			}
+			fmt.Println("==============================")
+		}
 	},
 }
 
@@ -54,21 +82,7 @@ var storeCmd = &cobra.Command{
 	Short: "Store function for ls/recover for database",
 	Long:  `Store function for ls/recover for database`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("==============================")
 		fmt.Println("=============STORE============")
-		fmt.Println("==============================")
-	},
-}
-
-var lsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List all gravity database",
-	Long:  `List all gravity database`,
-	//Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("==============================")
-		fmt.Println("=========LIST DATABASE========")
-		fmt.Println("==============================")
 	},
 }
 
@@ -78,8 +92,33 @@ var recoverCmd = &cobra.Command{
 	Long:  `Recover all gravity database`,
 	//Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("==============================")
-		fmt.Println("=======RECOVER DATABASE=======")
-		fmt.Println("==============================")
+		if allFlag {
+
+			fmt.Println("==== RECOVER ALL DATABASE ====")
+			for _, db := range gravitydbs {
+				fmt.Println(db + " Recovered")
+			}
+			fmt.Println("==============================")
+		} else {
+
+			fmt.Println("=======RECOVER DATABASE=======")
+			_, found := Find(gravitydbs, dbFlag)
+			if !found {
+				fmt.Println("Gravity not manage this db !")
+			} else {
+				fmt.Println(dbFlag)
+				fmt.Println("==============================")
+
+			}
+		}
 	},
+}
+
+func Find(slice []string, val string) (int, bool) {
+	for i, item := range slice {
+		if item == val {
+			return i, true
+		}
+	}
+	return -1, false
 }
