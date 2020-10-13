@@ -2,7 +2,10 @@ package cli
 
 import (
 	"fmt"
-	"gravity-cli/pkg/cli/cmds"
+	host "gravity-cli/pkg/cli/cmd_host"
+	login "gravity-cli/pkg/cli/cmd_login"
+	root "gravity-cli/pkg/cli/cmd_root"
+	store "gravity-cli/pkg/cli/cmd_store"
 	"os"
 
 	"go.uber.org/fx"
@@ -16,20 +19,25 @@ var Modual = fx.Options(
 )
 
 func NewGravityCli() {
-	cmds.ListCmd.Flags().StringVarP(&cmds.DbFlag, "dbinfo", "d", "", "Database information")
-	cmds.ListCmd.Flags().BoolVarP(&cmds.AllFlag, "alldbinfo", "a", false, "All Database information")
 
-	cmds.RecoverCmd.Flags().StringVarP(&cmds.DbFlag, "dbinfo", "d", "", "Recover Database")
-	cmds.RecoverCmd.Flags().BoolVarP(&cmds.AllFlag, "alldbinfo", "a", false, "Recover all Database")
+	// New Store Command
+	store := store.NewStoreCmd()
 
-	cmds.RootCmd.AddCommand(cmds.StoreCmd)
-	cmds.StoreCmd.AddCommand(cmds.ListCmd)
-	cmds.StoreCmd.AddCommand(cmds.RecoverCmd)
+	// New Login Command
+	login := login.NewLoginCmd()
+
+	// New Host Command
+	host := host.NewHostCmd()
+
+	// Root Combine
+	root.RootCmd.AddCommand(store)
+	root.RootCmd.AddCommand(login)
+	root.RootCmd.AddCommand(host)
 }
 
 func RunGracityCli() {
 
-	if err := cmds.RootCmd.Execute(); err != nil {
+	if err := root.RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 
 		os.Exit(1)

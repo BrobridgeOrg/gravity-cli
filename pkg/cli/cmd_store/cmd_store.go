@@ -1,4 +1,4 @@
-package cmds
+package cmd_store
 
 import (
 	"fmt"
@@ -16,12 +16,6 @@ var gravitydbs = []string{
 
 var DbFlag string
 var AllFlag bool
-
-var RootCmd = &cobra.Command{
-	Use:   "gravity-cli",
-	Short: "Gravity-cli tool",
-	Long:  `Gravity-cli tool by daginwu in Brobridge`,
-}
 
 var ListCmd = &cobra.Command{
 	Use:   "ls",
@@ -85,6 +79,23 @@ var RecoverCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+func NewStoreCmd() *cobra.Command {
+
+	// Store list Command
+	ListCmd.Flags().StringVarP(&DbFlag, "dbinfo", "d", "", "Database information")
+	ListCmd.Flags().BoolVarP(&AllFlag, "alldbinfo", "a", false, "All Database information")
+
+	// Store recover Command
+	RecoverCmd.Flags().StringVarP(&DbFlag, "dbinfo", "d", "", "Recover Database")
+	RecoverCmd.Flags().BoolVarP(&AllFlag, "alldbinfo", "a", false, "Recover all Database")
+
+	// Store Combine
+	StoreCmd.AddCommand(ListCmd)
+	StoreCmd.AddCommand(RecoverCmd)
+
+	return StoreCmd
 }
 
 func Find(slice []string, val string) (int, bool) {
