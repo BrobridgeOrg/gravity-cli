@@ -1,7 +1,7 @@
 # Gravity-cli Document
 
 Command|  Sub command | flag | shortcut flag  | Usage 
--------|-----:|------:|------:|-----
+-------|-----:|--------------:|-------------:|---------------
 store  |  ls    | --alldbinfo=True| -a |  Show all database manage by Gravity.
 store  |  ls    |--dbinfo=DB_NAME | -d DB_NAME |  Search database by give a name. 
 store  |  recover    | --alldbinfo=True| -a |  Recover all database manage by Gravity.
