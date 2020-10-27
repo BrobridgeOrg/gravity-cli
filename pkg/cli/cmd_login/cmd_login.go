@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var PasswordFlag string
@@ -14,6 +15,14 @@ var LoginCmd = &cobra.Command{
 	Short: "Login gravity user",
 	Long:  `Login user by Password and Account`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		viper.Set("account.accountID", AccountFlag)
+		viper.Set("account.password", PasswordFlag)
+		viper.WriteConfig()
+		viper.SafeWriteConfig()
+		fmt.Println("=================================")
+		fmt.Println("============Write Disk===========")
+
 		fmt.Println("=========Gravity Account=========")
 		fmt.Println("Account: " + AccountFlag)
 		fmt.Println("Password: " + PasswordFlag)
