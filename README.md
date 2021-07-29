@@ -215,5 +215,5 @@ Total: 1
 
 ## Author
 Copyright(c) 2020 JheSue <jhe@brobridge.com>  
-Copyright(c) 2020 Fred Chien <fred@brobridge.com> 
+Copyright(c) 2020 Fred Chien <fred@brobridge.com>  
 Copyright(c) 2020 Dagin Wu <daginwu@brobridge.com> 
