@@ -3,7 +3,7 @@ module github.com/BrobridgeOrg/gravity-cli
 go 1.15
 
 require (
-	github.com/BrobridgeOrg/gravity-sdk v0.0.29
+	github.com/BrobridgeOrg/gravity-sdk v0.0.31
 	github.com/manifoldco/promptui v0.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sirupsen/logrus v1.8.1

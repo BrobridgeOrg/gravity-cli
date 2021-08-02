@@ -3,6 +3,7 @@ package accessKey
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
@@ -38,13 +39,22 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 
 				if listAllFlag {
 					//show all information
-					table.SetHeader([]string{"AppID", "AppName", "AccessKey"})
+					table.SetHeader([]string{"AppID", "AppName", "AccessKey", "Roles"})
 					for i, entity := range entities {
 						appID = entity.AppID
 						if tmpAppID == appID && i == 0 {
 							continue
 						}
-						table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey})
+
+						roles := []string{}
+						permissions := entity.Properties["permissions"].([]interface{})
+						for _, permission := range permissions {
+							roles = append(roles, permission.(string))
+
+						}
+						rolesStr := strings.Join(roles, ",")
+
+						table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey, rolesStr})
 						total++
 					}
 				} else {
@@ -70,14 +80,23 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 
 			} else {
 
-				table.SetHeader([]string{"AppID", "AppName", "AccessKey"})
+				table.SetHeader([]string{"AppID", "AppName", "AccessKey", "Roles"})
 				for _, arg := range args {
 					// get entity
 					entity, err := authClient.GetEntity(arg)
 					if err != nil {
 						log.Fatal(err)
 					}
-					table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey})
+
+					roles := []string{}
+					permissions := entity.Properties["permissions"].([]interface{})
+					for _, permission := range permissions {
+						roles = append(roles, permission.(string))
+
+					}
+					rolesStr := strings.Join(roles, ",")
+
+					table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey, rolesStr})
 				}
 			}
 

@@ -10,6 +10,7 @@ import (
 	setConfigCmd "github.com/BrobridgeOrg/gravity-cli/pkg/cli/commands/setConfig"
 	auth "github.com/BrobridgeOrg/gravity-sdk/authenticator"
 	core "github.com/BrobridgeOrg/gravity-sdk/core"
+	"github.com/BrobridgeOrg/gravity-sdk/core/keyring"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -90,8 +91,7 @@ func (cli *Cli) GetAuthClient() (*auth.Authenticator, error) {
 	// Initializing authenticator and Connect to server
 	authOptions := auth.NewOptions()
 	authOptions.Domain = domain
-	authOptions.AccessKey = accessKey
-	authOptions.AppID = appID
+	authOptions.Key = keyring.NewKey(appID, accessKey)
 	authOptions.Channel = fmt.Sprintf("%s.authentication_manager", domain)
 
 	authClient := auth.NewAuthenticatorWithClient(client, authOptions)
