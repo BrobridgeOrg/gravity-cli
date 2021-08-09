@@ -8,8 +8,8 @@ import (
 func (accessKey *AccessKeyCmd) newDeleteAccessKeyCmd() *cobra.Command {
 	var deleteAccessKeyCmd = &cobra.Command{
 		Use:   "delete [AppID]",
-		Short: "Delete Gravity Subscriber's Access Key",
-		Long:  `Delete Gravity Subscriber's Access Key`,
+		Short: "Delete Gravity Access Key",
+		Long:  `Delete Gravity Access Key`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 

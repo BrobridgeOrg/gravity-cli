@@ -50,6 +50,6 @@ If $GRACONFIG environment variable is set, then that config file is loaded.`,
 	// Generate Config file
 	configFile := path.Join(configPath, "config.toml")
 
-	root.rootCmd.PersistentFlags().StringVarP(&configFileFlag, "config", "c", configFile, "Specify Gravity CLI config file")
+	root.rootCmd.PersistentFlags().StringVar(&configFileFlag, "config", configFile, "Specify Gravity CLI config file")
 	return root.rootCmd
 }

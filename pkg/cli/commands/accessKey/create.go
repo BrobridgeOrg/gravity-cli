@@ -14,10 +14,11 @@ func (accessKey *AccessKeyCmd) newCreateAccessKeyCmd() *cobra.Command {
 	var appIDFlag string
 	var accessKeyFlag string
 	var roleFlag string
+	var collectionFlag string
 	var createAccessKeyCmd = &cobra.Command{
 		Use:   "create",
-		Short: "Create Gravity Subscriber's Access Key",
-		Long:  `Create Gravity Subscriber's Access Key`,
+		Short: "Create Gravity Access Key",
+		Long:  `Create Gravity Access Key`,
 		Run: func(cmd *cobra.Command, args []string) {
 
 			//Get auth client
@@ -57,11 +58,37 @@ func (accessKey *AccessKeyCmd) newCreateAccessKeyCmd() *cobra.Command {
 				}
 			}
 
+			//process access key collections
+			collections := []string{}
+			if len(collectionFlag) > 0 {
+				rs := strings.Split(collectionFlag, ",")
+				for _, r := range rs {
+					r = strings.TrimSpace(r)
+
+					if len(r) == 0 {
+						continue
+					}
+
+					appendCol := true
+					for _, collection := range collections {
+						if collection == r {
+							appendCol = false
+							break
+						}
+					}
+
+					if appendCol {
+						collections = append(collections, r)
+					}
+				}
+			}
+
 			entity := auth.NewEntity()
 			entity.AppID = appIDFlag
 			entity.AccessKey = accessKeyFlag
 			entity.AppName = appNameFlag
 			entity.Properties["permissions"] = roles
+			entity.Properties["collections"] = collections
 
 			if err := authClient.CreateEntity(entity); err != nil {
 				log.Fatal(err)
@@ -74,6 +101,7 @@ func (accessKey *AccessKeyCmd) newCreateAccessKeyCmd() *cobra.Command {
 	createAccessKeyCmd.Flags().StringVarP(&appIDFlag, "appID", "i", "", "Specify client's appID")
 	createAccessKeyCmd.Flags().StringVarP(&accessKeyFlag, "accessKey", "k", "", "Specify client's accessKey")
 	createAccessKeyCmd.Flags().StringVarP(&roleFlag, "roles", "r", "", "Specify accessKey's roles [ SYSTEM | ADAPTER | SUBSCRBIER ], This flag can using \",\" to  specified multiple roles.")
+	createAccessKeyCmd.Flags().StringVarP(&collectionFlag, "collections", "c", "", "Assign accessKey can subscribe's collections, This flag can using \",\" to  specified multiple collections. (Default can subscribe any collections.)")
 
 	createAccessKeyCmd.MarkFlagRequired("name")
 	createAccessKeyCmd.MarkFlagRequired("appID")

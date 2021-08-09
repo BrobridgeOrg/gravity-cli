@@ -22,8 +22,8 @@ func (accessKey *AccessKeyCmd) Init() *cobra.Command {
 
 	accessKey.accessKeyCmd = &cobra.Command{
 		Use:   "accessKey",
-		Short: "Gravity Subscriber's Access Key Manager",
-		Long:  `Gravity Subscriber's Access Key Manager`,
+		Short: "Gravity Access Key Manager",
+		Long:  `Gravity Access Key Manager`,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Nothing to do
 		},

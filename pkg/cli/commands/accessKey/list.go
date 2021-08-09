@@ -1,7 +1,6 @@
 package accessKey
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -14,8 +13,8 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 	var listAllFlag bool
 	var listAccessKeyCmd = &cobra.Command{
 		Use:   "list [AppID]",
-		Short: "List Gravity Subscriber's Access Key",
-		Long:  `List Gravity Subscriber's Access Key`,
+		Short: "List Gravity Access Key",
+		Long:  `List Gravity Access Key`,
 		Run: func(cmd *cobra.Command, args []string) {
 
 			//Get auth client
@@ -25,10 +24,19 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 			}
 
 			table := tablewriter.NewWriter(os.Stdout)
-			table.SetRowLine(true)
+			table.SetAutoWrapText(false)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.SetCenterSeparator("")
+			table.SetColumnSeparator("")
+			table.SetRowSeparator("")
+			table.SetHeaderLine(false)
+			table.SetBorder(false)
+			table.SetTablePadding("\t") // pad with tabs
+			table.SetNoWhiteSpace(true)
+
 			appID := ""
 			tmpAppID := ""
-			total := 0
 			if len(args) == 0 {
 				// get entities
 			LOOP:
@@ -39,7 +47,7 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 
 				if listAllFlag {
 					//show all information
-					table.SetHeader([]string{"AppID", "AppName", "AccessKey", "Roles"})
+					table.SetHeader([]string{"AppID", "AppName", "AccessKey", "Roles", "Collections"})
 					for i, entity := range entities {
 						appID = entity.AppID
 						if tmpAppID == appID && i == 0 {
@@ -54,8 +62,15 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 						}
 						rolesStr := strings.Join(roles, ",")
 
-						table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey, rolesStr})
-						total++
+						collections := []string{}
+						cols := entity.Properties["collections"].([]interface{})
+						for _, col := range cols {
+							collections = append(collections, col.(string))
+
+						}
+						collectionsStr := strings.Join(collections, ",")
+
+						table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey, rolesStr, collectionsStr})
 					}
 				} else {
 					table.SetHeader([]string{"AppID", "AppName"})
@@ -65,7 +80,6 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 							continue
 						}
 						table.Append([]string{entity.AppID, entity.AppName})
-						total++
 					}
 
 				}
@@ -75,12 +89,9 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 					goto LOOP
 				}
 
-				caption := fmt.Sprintf("Total: %d", total)
-				table.SetCaption(true, caption)
-
 			} else {
 
-				table.SetHeader([]string{"AppID", "AppName", "AccessKey", "Roles"})
+				table.SetHeader([]string{"AppID", "AppName", "AccessKey", "Roles", "Collections"})
 				for _, arg := range args {
 					// get entity
 					entity, err := authClient.GetEntity(arg)
@@ -96,7 +107,15 @@ func (accessKey *AccessKeyCmd) newListAccessKeyCmd() *cobra.Command {
 					}
 					rolesStr := strings.Join(roles, ",")
 
-					table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey, rolesStr})
+					collections := []string{}
+					cols := entity.Properties["collections"].([]interface{})
+					for _, col := range cols {
+						collections = append(collections, col.(string))
+
+					}
+					collectionsStr := strings.Join(collections, ",")
+
+					table.Append([]string{entity.AppID, entity.AppName, entity.AccessKey, rolesStr, collectionsStr})
 				}
 			}
 
