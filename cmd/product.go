@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -24,6 +27,7 @@ type productCmdFunc func(*configs.Config, *zap.Logger, *connector.Connector, *pr
 var productName string
 var productDesc string
 var productEnabled bool
+var productSchemaFile string
 
 // Rule flags
 var ruleName string
@@ -37,13 +41,19 @@ func init() {
 
 	RootCmd.AddCommand(productCmd)
 	productCmd.AddCommand(productListCmd)
-	productCmd.AddCommand(productCreateCmd)
 	productCmd.AddCommand(productDeleteCmd)
+
+	// Create product
+	productCmd.AddCommand(productCreateCmd)
+	productCreateCmd.Flags().StringVar(&productDesc, "desc", "", "Specify description")
+	productCreateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable product (default false)")
+	productCreateCmd.Flags().StringVar(&productSchemaFile, "schema", "", "Load schema from specific file")
 
 	// Update product
 	productCmd.AddCommand(productUpdateCmd)
 	productUpdateCmd.Flags().StringVar(&productDesc, "desc", "", "Specify description")
-	productUpdateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable product (default false)")
+	productUpdateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable produc")
+	productUpdateCmd.Flags().StringVar(&productSchemaFile, "schema", "", "Load schema from specific file")
 
 	// Rule
 	productCmd.AddCommand(productRuleCmd)
@@ -81,6 +91,29 @@ func init() {
 	productRuleDeleteCmd.MarkFlagRequired("product")
 }
 
+func readSchemaFile(filename string) (map[string]interface{}, error) {
+
+	file, err := os.Open(productSchemaFile)
+	if err != nil {
+		return nil, errors.New("Error: No such schema file")
+	}
+
+	// Read file
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var schema map[string]interface{}
+	err = json.Unmarshal(data, &schema)
+	if err != nil {
+
+		return nil, errors.New("Error: invalid schema format")
+	}
+
+	return schema, nil
+}
+
 var productCmd = &cobra.Command{
 	Use:   "product",
 	Short: "Manage data products",
@@ -108,7 +141,7 @@ func runProductCmd(fn productCmdFunc, cmd *cobra.Command, args []string) error {
 
 var productListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List data products",
+	Short: "List available products",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if err := runProductCmd(runProductListCmd, cmd, args); err != nil {
@@ -129,7 +162,7 @@ func runProductListCmd(config *configs.Config, l *zap.Logger, c *connector.Conne
 	}
 
 	if len(products) == 0 {
-		fmt.Println("No products")
+		fmt.Println("No available products")
 		os.Exit(0)
 		return
 	}
@@ -195,13 +228,28 @@ var productCreateCmd = &cobra.Command{
 func runProductCreateCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
 
 	setting := product_sdk.ProductSetting{}
+	setting.Name = args[0]
 
-	if len(args) > 0 {
-		setting.Name = args[0]
+	// Description
+	if cmd.Flags().Changed("desc") {
+		setting.Description = productDesc
 	}
 
-	if len(args) == 2 {
-		setting.Description = args[1]
+	// Enable
+	if cmd.Flags().Changed("enabled") {
+		setting.Enabled = productEnabled
+	}
+
+	// Schema
+	if cmd.Flags().Changed("schema") {
+		schema, err := readSchemaFile(productSchemaFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+			return
+		}
+
+		setting.Schema = schema
 	}
 
 	_, err := p.GetClient().CreateProduct(&setting)
@@ -285,6 +333,18 @@ func runProductUpdateCmd(config *configs.Config, l *zap.Logger, c *connector.Con
 	// Update enabled
 	if cmd.Flags().Changed("enabled") {
 		product.Enabled = productEnabled
+	}
+
+	// Update schema
+	if cmd.Flags().Changed("schema") {
+		schema, err := readSchemaFile(productSchemaFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+			return
+		}
+
+		product.Schema = schema
 	}
 
 	// Update
@@ -492,7 +552,7 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 
 var productRuleListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List rules of product",
+	Short: "List available rules",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if err := runProductCmd(runProductRuleListCmd, cmd, args); err != nil {
@@ -521,7 +581,7 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 	}
 
 	if product.Rules == nil {
-		fmt.Println("No rules")
+		fmt.Println("No available rules")
 		os.Exit(1)
 		return
 	}
