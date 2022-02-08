@@ -36,6 +36,7 @@ var ruleEvent string
 var ruleMethod string
 var ruleEnabled bool
 var rulePrimaryKey []string
+var ruleSchemaFile string
 
 func init() {
 
@@ -71,6 +72,7 @@ func init() {
 	productRuleCreateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
 	productRuleCreateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleCreateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
+	productRuleCreateCmd.Flags().StringVar(&ruleSchemaFile, "schema", "", "Load schema from specific file")
 	productRuleCreateCmd.MarkFlagRequired("product")
 	productRuleCreateCmd.MarkFlagRequired("event")
 	productRuleCreateCmd.MarkFlagRequired("method")
@@ -83,6 +85,7 @@ func init() {
 	productRuleUpdateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
 	productRuleUpdateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleUpdateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
+	productRuleUpdateCmd.Flags().StringVar(&ruleSchemaFile, "schema", "", "Load schema from specific file")
 	productRuleUpdateCmd.MarkFlagRequired("product")
 
 	// Delete rule
@@ -436,9 +439,21 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 	rule.PrimaryKey = rulePrimaryKey
 	rule.Description = ruleDescription
 
-	// Update enabled
+	// Enabled
 	if cmd.Flags().Changed("enabled") {
 		rule.Enabled = ruleEnabled
+	}
+
+	// Schema
+	if cmd.Flags().Changed("schema") {
+		schema, err := readSchemaFile(ruleSchemaFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+			return
+		}
+
+		rule.SchemaConfig = schema
 	}
 
 	// Add to rule set
@@ -535,6 +550,18 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 	// Update enabled
 	if cmd.Flags().Changed("enabled") {
 		rule.Enabled = ruleEnabled
+	}
+
+	// Update schema
+	if cmd.Flags().Changed("schema") {
+		schema, err := readSchemaFile(ruleSchemaFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+			return
+		}
+
+		rule.SchemaConfig = schema
 	}
 
 	rule.UpdatedAt = time.Now()
