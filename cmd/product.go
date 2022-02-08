@@ -47,40 +47,38 @@ func init() {
 
 	// Rule
 	productCmd.AddCommand(productRuleCmd)
-	productRuleCmd.PersistentFlags().StringVar(&productName, "product", "", "Specify product name (required)")
-	productRuleCmd.MarkFlagRequired("product")
 
 	// List rules
 	productRuleCmd.AddCommand(productRuleListCmd)
-	//	productRuleListCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	//	productRuleListCmd.MarkFlagRequired("product")
+	productRuleListCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleListCmd.MarkFlagRequired("product")
 
 	// Create rule
 	productRuleCmd.AddCommand(productRuleCreateCmd)
-	//	productRuleCreateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleCreateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleCreateCmd.Flags().StringVar(&ruleEvent, "event", "", "Specify event name")
 	productRuleCreateCmd.Flags().StringVar(&ruleMethod, "method", "", "Specify method (required)")
 	productRuleCreateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
 	productRuleCreateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleCreateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
-	//	productRuleCreateCmd.MarkFlagRequired("product")
+	productRuleCreateCmd.MarkFlagRequired("product")
 	productRuleCreateCmd.MarkFlagRequired("event")
 	productRuleCreateCmd.MarkFlagRequired("method")
 
 	// Update rule
 	productRuleCmd.AddCommand(productRuleUpdateCmd)
-	//	productRuleUpdateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleUpdateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleUpdateCmd.Flags().StringVar(&ruleEvent, "event", "", "Specify event name")
 	productRuleUpdateCmd.Flags().StringVar(&ruleMethod, "method", "", "Specify method")
 	productRuleUpdateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
 	productRuleUpdateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleUpdateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
-	//	productRuleUpdateCmd.MarkFlagRequired("product")
+	productRuleUpdateCmd.MarkFlagRequired("product")
 
 	// Delete rule
 	productRuleCmd.AddCommand(productRuleDeleteCmd)
-	//	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	//	productRuleDeleteCmd.MarkFlagRequired("product")
+	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleDeleteCmd.MarkFlagRequired("product")
 }
 
 var productCmd = &cobra.Command{
