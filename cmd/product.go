@@ -523,7 +523,9 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 	}
 
 	if product.Rules == nil {
-		product.Rules = make(map[string]*product_sdk.Rule)
+		fmt.Println("No rules")
+		os.Exit(1)
+		return
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
