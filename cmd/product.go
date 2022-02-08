@@ -51,6 +51,7 @@ func init() {
 	// List rules
 	productRuleCmd.AddCommand(productRuleListCmd)
 	productRuleListCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleListCmd.MarkFlagRequired("product")
 
 	// Create rule
 	productRuleCmd.AddCommand(productRuleCreateCmd)
@@ -73,6 +74,11 @@ func init() {
 	productRuleUpdateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleUpdateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
 	productRuleUpdateCmd.MarkFlagRequired("product")
+
+	// Delete rule
+	productRuleCmd.AddCommand(productRuleDeleteCmd)
+	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleDeleteCmd.MarkFlagRequired("product")
 }
 
 var productCmd = &cobra.Command{
@@ -317,7 +323,7 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Printf("Require product")
+		fmt.Println("Require product")
 		os.Exit(1)
 		return
 	}
@@ -409,7 +415,7 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Printf("Require specify product")
+		fmt.Println("Require product")
 		os.Exit(1)
 		return
 	}
@@ -501,7 +507,7 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Printf("Require specify product")
+		fmt.Println("Require product")
 		os.Exit(1)
 		return
 	}
@@ -525,7 +531,7 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 		"Event",
 		"Method",
 		"PK",
-		"Enbaled",
+		"Status",
 		"Updated",
 		"Created",
 	})
@@ -569,6 +575,66 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 	}
 
 	table.Render()
+
+	os.Exit(0)
+}
+
+var productRuleDeleteCmd = &cobra.Command{
+	Use:   "delete [rule name]",
+	Short: "Delete rule",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runProductCmd(runProductRuleDeleteCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runProductRuleDeleteCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+
+	ruleName = args[0]
+
+	// Validate product name
+	if len(productName) == 0 {
+		fmt.Println("Require product")
+		os.Exit(1)
+		return
+	}
+
+	// Getting product information
+	product, err := p.GetClient().GetProduct(productName)
+	if err != nil {
+		fmt.Printf("Not found product \"%s\"\n", productName)
+		os.Exit(1)
+		return
+	}
+
+	if product.Rules == nil {
+		fmt.Printf("Not found rule \"%s\"\n", ruleName)
+		os.Exit(1)
+		return
+	}
+
+	// Check whether rule does exist or not
+	_, ok := product.Rules[ruleName]
+	if !ok {
+		fmt.Printf("Not found rule \"%s\"\n", ruleName)
+		os.Exit(1)
+		return
+	}
+
+	delete(product.Rules, ruleName)
+
+	// Update
+	_, err = p.GetClient().UpdateProduct(productName, product)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+		return
+	}
 
 	os.Exit(0)
 }
