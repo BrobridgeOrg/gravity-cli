@@ -56,6 +56,9 @@ func init() {
 	productUpdateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable produc")
 	productUpdateCmd.Flags().StringVar(&productSchemaFile, "schema", "", "Load schema from specific file")
 
+	// Get product information
+	productCmd.AddCommand(productInfoCmd)
+
 	// Rule
 	productCmd.AddCommand(productRuleCmd)
 
@@ -356,6 +359,98 @@ func runProductUpdateCmd(config *configs.Config, l *zap.Logger, c *connector.Con
 		fmt.Println(err)
 		os.Exit(1)
 		return
+	}
+
+	os.Exit(0)
+}
+
+var productInfoCmd = &cobra.Command{
+	Use:   "info [product name]",
+	Short: "Show information about product",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runProductCmd(runProductInfoCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runProductInfoCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+
+	productName = args[0]
+
+	// Getting product information
+	product, err := p.GetClient().GetProduct(productName)
+	if err != nil {
+		fmt.Printf("Error: Not found product \"%s\"\n", productName)
+		os.Exit(1)
+		return
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(true)
+	//	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetColumnAlignment([]int{tablewriter.ALIGN_RIGHT, tablewriter.ALIGN_LEFT})
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("")
+	table.SetHeaderLine(false)
+	table.SetBorder(false)
+	table.SetTablePadding("\t")
+	//table.SetNoWhiteSpace(true)
+
+	// Basic information
+	table.Append([]string{
+		"Name:",
+		product.Name,
+	})
+
+	table.Append([]string{
+		"Description:",
+		product.Description,
+	})
+
+	var status string
+	if product.Enabled {
+		status = "enabled"
+	} else {
+		status = "disabled"
+	}
+
+	table.Append([]string{
+		"Status:",
+		status,
+	})
+
+	table.Append([]string{
+		"Updated:",
+		product.UpdatedAt.String(),
+	})
+
+	table.Append([]string{
+		"Created:",
+		product.CreatedAt.String(),
+	})
+
+	fmt.Printf("Information for Product %s\n\n", productName)
+	fmt.Printf("Configuration:\n\n")
+
+	table.Render()
+
+	fmt.Println("")
+
+	// Schema
+	if product.Schema != nil {
+		fmt.Println("")
+		fmt.Println("Schema:")
+		fmt.Println("")
+		schema, _ := json.MarshalIndent(product.Schema, "", "    ")
+		fmt.Println(string(schema))
+		fmt.Println("")
 	}
 
 	os.Exit(0)
