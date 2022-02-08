@@ -47,38 +47,40 @@ func init() {
 
 	// Rule
 	productCmd.AddCommand(productRuleCmd)
+	productRuleCmd.PersistentFlags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleCmd.MarkFlagRequired("product")
 
 	// List rules
 	productRuleCmd.AddCommand(productRuleListCmd)
-	productRuleListCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	productRuleListCmd.MarkFlagRequired("product")
+	//	productRuleListCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	//	productRuleListCmd.MarkFlagRequired("product")
 
 	// Create rule
 	productRuleCmd.AddCommand(productRuleCreateCmd)
-	productRuleCreateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	//	productRuleCreateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleCreateCmd.Flags().StringVar(&ruleEvent, "event", "", "Specify event name")
 	productRuleCreateCmd.Flags().StringVar(&ruleMethod, "method", "", "Specify method (required)")
 	productRuleCreateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
 	productRuleCreateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleCreateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
-	productRuleCreateCmd.MarkFlagRequired("product")
+	//	productRuleCreateCmd.MarkFlagRequired("product")
 	productRuleCreateCmd.MarkFlagRequired("event")
 	productRuleCreateCmd.MarkFlagRequired("method")
 
 	// Update rule
 	productRuleCmd.AddCommand(productRuleUpdateCmd)
-	productRuleUpdateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	//	productRuleUpdateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleUpdateCmd.Flags().StringVar(&ruleEvent, "event", "", "Specify event name")
 	productRuleUpdateCmd.Flags().StringVar(&ruleMethod, "method", "", "Specify method")
 	productRuleUpdateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
 	productRuleUpdateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleUpdateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
-	productRuleUpdateCmd.MarkFlagRequired("product")
+	//	productRuleUpdateCmd.MarkFlagRequired("product")
 
 	// Delete rule
 	productRuleCmd.AddCommand(productRuleDeleteCmd)
-	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	productRuleDeleteCmd.MarkFlagRequired("product")
+	//	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	//	productRuleDeleteCmd.MarkFlagRequired("product")
 }
 
 var productCmd = &cobra.Command{
@@ -272,7 +274,7 @@ func runProductUpdateCmd(config *configs.Config, l *zap.Logger, c *connector.Con
 	// Getting product information
 	product, err := p.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Not found product \"%s\"\n", productName)
+		fmt.Printf("Error: Not found product \"%s\"\n", productName)
 		os.Exit(1)
 		return
 	}
@@ -323,19 +325,19 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Require product")
+		fmt.Println("Error: require flag: --product")
 		os.Exit(1)
 		return
 	}
 
 	if len(ruleEvent) == 0 {
-		fmt.Println("Require event")
+		fmt.Println("Error: require flag: --event")
 		os.Exit(1)
 		return
 	}
 
 	if len(ruleMethod) == 0 {
-		fmt.Println("Require method")
+		fmt.Println("Error: require flag: --method")
 		os.Exit(1)
 		return
 	}
@@ -343,7 +345,7 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 	// Getting product information
 	product, err := p.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Not found product \"%s\"\n", productName)
+		fmt.Printf("Error: Not found product \"%s\"\n", productName)
 		os.Exit(1)
 		return
 	}
@@ -415,7 +417,7 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Require product")
+		fmt.Println("Error: require flag: --product")
 		os.Exit(1)
 		return
 	}
@@ -423,13 +425,13 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 	// Getting product information
 	product, err := p.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Not found product \"%s\"\n", productName)
+		fmt.Printf("Error: Not found product \"%s\"\n", productName)
 		os.Exit(1)
 		return
 	}
 
 	if product.Rules == nil {
-		fmt.Printf("Not found rule \"%s\"\n", ruleName)
+		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
 		os.Exit(1)
 		return
 	}
@@ -437,7 +439,7 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 	// Check whether rule does exist or not
 	rule, ok := product.Rules[ruleName]
 	if !ok {
-		fmt.Printf("Not found rule \"%s\"\n", ruleName)
+		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
 		os.Exit(1)
 		return
 	}
@@ -507,7 +509,7 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Require product")
+		fmt.Println("Error: require flag: --product")
 		os.Exit(1)
 		return
 	}
@@ -515,7 +517,7 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 	// Getting product information
 	product, err := p.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Not found product \"%s\"\n", productName)
+		fmt.Printf("Error: Not found product \"%s\"\n", productName)
 		os.Exit(1)
 		return
 	}
@@ -599,7 +601,7 @@ func runProductRuleDeleteCmd(config *configs.Config, l *zap.Logger, c *connector
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Require product")
+		fmt.Println("Error: require flag: --product")
 		os.Exit(1)
 		return
 	}
@@ -607,13 +609,13 @@ func runProductRuleDeleteCmd(config *configs.Config, l *zap.Logger, c *connector
 	// Getting product information
 	product, err := p.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Not found product \"%s\"\n", productName)
+		fmt.Printf("Error: Not found product \"%s\"\n", productName)
 		os.Exit(1)
 		return
 	}
 
 	if product.Rules == nil {
-		fmt.Printf("Not found rule \"%s\"\n", ruleName)
+		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
 		os.Exit(1)
 		return
 	}
@@ -621,7 +623,7 @@ func runProductRuleDeleteCmd(config *configs.Config, l *zap.Logger, c *connector
 	// Check whether rule does exist or not
 	_, ok := product.Rules[ruleName]
 	if !ok {
-		fmt.Printf("Not found rule \"%s\"\n", ruleName)
+		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
 		os.Exit(1)
 		return
 	}
