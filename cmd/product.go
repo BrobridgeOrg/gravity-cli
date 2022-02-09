@@ -56,7 +56,7 @@ func init() {
 	productUpdateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable produc")
 	productUpdateCmd.Flags().StringVar(&productSchemaFile, "schema", "", "Load schema from specific file")
 
-	// Get product information
+	// Show product information
 	productCmd.AddCommand(productInfoCmd)
 
 	// Rule
@@ -95,6 +95,11 @@ func init() {
 	productRuleCmd.AddCommand(productRuleDeleteCmd)
 	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleDeleteCmd.MarkFlagRequired("product")
+
+	// Show rule infor
+	productRuleCmd.AddCommand(productRuleInfoCmd)
+	productRuleInfoCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
+	productRuleInfoCmd.MarkFlagRequired("product")
 }
 
 func readSchemaFile(filename string) (map[string]interface{}, error) {
@@ -818,6 +823,141 @@ func runProductRuleDeleteCmd(config *configs.Config, l *zap.Logger, c *connector
 		fmt.Println(err)
 		os.Exit(1)
 		return
+	}
+
+	os.Exit(0)
+}
+
+var productRuleInfoCmd = &cobra.Command{
+	Use:   "info [product name]",
+	Short: "Show information about rule",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runProductCmd(runProductRuleInfoCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runProductRuleInfoCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+
+	ruleName = args[0]
+
+	// Validate product name
+	if len(productName) == 0 {
+		fmt.Println("Error: require flag: --product")
+		os.Exit(1)
+		return
+	}
+
+	// Getting product information
+	product, err := p.GetClient().GetProduct(productName)
+	if err != nil {
+		fmt.Printf("Error: Not found product \"%s\"\n", productName)
+		os.Exit(1)
+		return
+	}
+
+	if product.Rules == nil {
+		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
+		os.Exit(1)
+		return
+	}
+
+	// Check whether rule does exist or not
+	rule, ok := product.Rules[ruleName]
+	if !ok {
+		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
+		os.Exit(1)
+		return
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(true)
+	//	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetColumnAlignment([]int{tablewriter.ALIGN_RIGHT, tablewriter.ALIGN_LEFT})
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("")
+	table.SetHeaderLine(false)
+	table.SetBorder(false)
+	table.SetTablePadding("\t")
+	//table.SetNoWhiteSpace(true)
+
+	// Basic information
+	table.Append([]string{
+		"Product:",
+		rule.Product,
+	})
+
+	table.Append([]string{
+		"Name:",
+		rule.Name,
+	})
+
+	table.Append([]string{
+		"Description:",
+		rule.Description,
+	})
+
+	var status string
+	if rule.Enabled {
+		status = "enabled"
+	} else {
+		status = "disabled"
+	}
+
+	table.Append([]string{
+		"Status:",
+		status,
+	})
+
+	table.Append([]string{
+		"Method:",
+		rule.Method,
+	})
+
+	// Primary Key
+	var pk string
+	if len(rule.PrimaryKey) == 0 {
+		pk = "n/a"
+	} else {
+		pk = strings.Join(rule.PrimaryKey, ",")
+	}
+	table.Append([]string{
+		"Primary Key:",
+		pk,
+	})
+
+	table.Append([]string{
+		"Updated:",
+		rule.UpdatedAt.String(),
+	})
+
+	table.Append([]string{
+		"Created:",
+		rule.CreatedAt.String(),
+	})
+
+	fmt.Printf("Information for Rule %s\n\n", productName)
+	fmt.Printf("Configuration:\n\n")
+
+	table.Render()
+
+	fmt.Println("")
+
+	// Schema
+	if product.Schema != nil {
+		fmt.Println("")
+		fmt.Println("Schema:")
+		fmt.Println("")
+		schema, _ := json.MarshalIndent(product.Schema, "", "    ")
+		fmt.Println(string(schema))
+		fmt.Println("")
 	}
 
 	os.Exit(0)
