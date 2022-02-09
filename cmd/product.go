@@ -37,6 +37,7 @@ var ruleMethod string
 var ruleEnabled bool
 var rulePrimaryKey []string
 var ruleSchemaFile string
+var ruleHandlerFile string
 
 func init() {
 
@@ -76,6 +77,7 @@ func init() {
 	productRuleCreateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleCreateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
 	productRuleCreateCmd.Flags().StringVar(&ruleSchemaFile, "schema", "", "Load schema from specific file")
+	productRuleCreateCmd.Flags().StringVar(&ruleHandlerFile, "handler", "", "Load handler script from specific file")
 	productRuleCreateCmd.MarkFlagRequired("product")
 	productRuleCreateCmd.MarkFlagRequired("event")
 	productRuleCreateCmd.MarkFlagRequired("method")
@@ -89,6 +91,7 @@ func init() {
 	productRuleUpdateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
 	productRuleUpdateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
 	productRuleUpdateCmd.Flags().StringVar(&ruleSchemaFile, "schema", "", "Load schema from specific file")
+	productRuleUpdateCmd.Flags().StringVar(&ruleHandlerFile, "handler", "", "Load handler script from specific file")
 	productRuleUpdateCmd.MarkFlagRequired("product")
 
 	// Delete rule
@@ -96,7 +99,7 @@ func init() {
 	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleDeleteCmd.MarkFlagRequired("product")
 
-	// Show rule infor
+	// Show rule information
 	productRuleCmd.AddCommand(productRuleInfoCmd)
 	productRuleInfoCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleInfoCmd.MarkFlagRequired("product")
@@ -104,7 +107,7 @@ func init() {
 
 func readSchemaFile(filename string) (map[string]interface{}, error) {
 
-	file, err := os.Open(productSchemaFile)
+	file, err := os.Open(filename)
 	if err != nil {
 		return nil, errors.New("Error: No such schema file")
 	}
@@ -123,6 +126,22 @@ func readSchemaFile(filename string) (map[string]interface{}, error) {
 	}
 
 	return schema, nil
+}
+
+func readHandlerScriptFile(filename string) ([]byte, error) {
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, errors.New("Error: No such handler file")
+	}
+
+	// Read file
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 var productCmd = &cobra.Command{
@@ -556,6 +575,22 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 		rule.SchemaConfig = schema
 	}
 
+	// Handler script
+	if cmd.Flags().Changed("handler") {
+
+		script, err := readHandlerScriptFile(ruleHandlerFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+			return
+		}
+
+		rule.HandlerConfig = &product_sdk.HandlerConfig{
+			Type:   "script",
+			Script: string(script),
+		}
+	}
+
 	// Add to rule set
 	product.Rules[rule.Name] = rule
 
@@ -662,6 +697,22 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 		}
 
 		rule.SchemaConfig = schema
+	}
+
+	// Handler script
+	if cmd.Flags().Changed("handler") {
+
+		script, err := readHandlerScriptFile(ruleHandlerFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+			return
+		}
+
+		rule.HandlerConfig = &product_sdk.HandlerConfig{
+			Type:   "script",
+			Script: string(script),
+		}
 	}
 
 	rule.UpdatedAt = time.Now()
@@ -951,12 +1002,21 @@ func runProductRuleInfoCmd(config *configs.Config, l *zap.Logger, c *connector.C
 	fmt.Println("")
 
 	// Schema
-	if product.Schema != nil {
+	if rule.SchemaConfig != nil {
 		fmt.Println("")
 		fmt.Println("Schema:")
 		fmt.Println("")
-		schema, _ := json.MarshalIndent(product.Schema, "", "    ")
+		schema, _ := json.MarshalIndent(rule.SchemaConfig, "", "    ")
 		fmt.Println(string(schema))
+		fmt.Println("")
+	}
+
+	// Handler
+	if rule.HandlerConfig != nil {
+		fmt.Println("")
+		fmt.Println("Handler Script:")
+		fmt.Println("")
+		fmt.Println(rule.HandlerConfig.Script)
 		fmt.Println("")
 	}
 
