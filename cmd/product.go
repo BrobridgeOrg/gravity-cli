@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +22,16 @@ import (
 	"go.uber.org/zap"
 )
 
-type productCmdFunc func(*configs.Config, *zap.Logger, *connector.Connector, *product.Product, *cobra.Command, []string)
+type ProductCommandContext struct {
+	Config    *configs.Config
+	Logger    *zap.Logger
+	Connector *connector.Connector
+	Product   *product.Product
+	Cmd       *cobra.Command
+	Args      []string
+}
+
+type productCmdFunc func(*ProductCommandContext) error
 
 // Product flags
 var productName string
@@ -65,26 +75,21 @@ func init() {
 
 	// List rules
 	productRuleCmd.AddCommand(productRuleListCmd)
-	productRuleListCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	productRuleListCmd.MarkFlagRequired("product")
 
 	// Create rule
-	productRuleCmd.AddCommand(productRuleCreateCmd)
-	productRuleCreateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	productRuleCreateCmd.Flags().StringVar(&ruleEvent, "event", "", "Specify event name")
-	productRuleCreateCmd.Flags().StringVar(&ruleMethod, "method", "", "Specify method (required)")
-	productRuleCreateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
-	productRuleCreateCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
-	productRuleCreateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
-	productRuleCreateCmd.Flags().StringVar(&ruleSchemaFile, "schema", "", "Load schema from specific file")
-	productRuleCreateCmd.Flags().StringVar(&ruleHandlerFile, "handler", "", "Load handler script from specific file")
-	productRuleCreateCmd.MarkFlagRequired("product")
-	productRuleCreateCmd.MarkFlagRequired("event")
-	productRuleCreateCmd.MarkFlagRequired("method")
+	productRuleCmd.AddCommand(productRuleAddCmd)
+	productRuleAddCmd.Flags().StringVar(&ruleEvent, "event", "", "Specify event name")
+	productRuleAddCmd.Flags().StringVar(&ruleMethod, "method", "", "Specify method (required)")
+	productRuleAddCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
+	productRuleAddCmd.Flags().StringVar(&ruleDescription, "desc", "", "Specify description")
+	productRuleAddCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
+	productRuleAddCmd.Flags().StringVar(&ruleSchemaFile, "schema", "", "Load schema from specific file")
+	productRuleAddCmd.Flags().StringVar(&ruleHandlerFile, "handler", "", "Load handler script from specific file")
+	productRuleAddCmd.MarkFlagRequired("event")
+	productRuleAddCmd.MarkFlagRequired("method")
 
 	// Update rule
 	productRuleCmd.AddCommand(productRuleUpdateCmd)
-	productRuleUpdateCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
 	productRuleUpdateCmd.Flags().StringVar(&ruleEvent, "event", "", "Specify event name")
 	productRuleUpdateCmd.Flags().StringVar(&ruleMethod, "method", "", "Specify method")
 	productRuleUpdateCmd.Flags().BoolVar(&ruleEnabled, "enabled", false, "Enable rule (default false)")
@@ -92,24 +97,19 @@ func init() {
 	productRuleUpdateCmd.Flags().StringSliceVar(&rulePrimaryKey, "pk", []string{}, `Specify primary key (support multiple fields with separator ",")`)
 	productRuleUpdateCmd.Flags().StringVar(&ruleSchemaFile, "schema", "", "Load schema from specific file")
 	productRuleUpdateCmd.Flags().StringVar(&ruleHandlerFile, "handler", "", "Load handler script from specific file")
-	productRuleUpdateCmd.MarkFlagRequired("product")
 
 	// Delete rule
 	productRuleCmd.AddCommand(productRuleDeleteCmd)
-	productRuleDeleteCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	productRuleDeleteCmd.MarkFlagRequired("product")
 
 	// Show rule information
 	productRuleCmd.AddCommand(productRuleInfoCmd)
-	productRuleInfoCmd.Flags().StringVar(&productName, "product", "", "Specify product name (required)")
-	productRuleInfoCmd.MarkFlagRequired("product")
 }
 
 func readSchemaFile(filename string) (map[string]interface{}, error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, errors.New("Error: No such schema file")
+		return nil, errors.New("No such schema file")
 	}
 
 	// Read file
@@ -122,7 +122,7 @@ func readSchemaFile(filename string) (map[string]interface{}, error) {
 	err = json.Unmarshal(data, &schema)
 	if err != nil {
 
-		return nil, errors.New("Error: invalid schema format")
+		return nil, errors.New("invalid schema format")
 	}
 
 	return schema, nil
@@ -132,7 +132,7 @@ func readHandlerScriptFile(filename string) ([]byte, error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, errors.New("Error: No such handler file")
+		return nil, errors.New("No such handler file")
 	}
 
 	// Read file
@@ -151,9 +151,11 @@ var productCmd = &cobra.Command{
 
 func runProductCmd(fn productCmdFunc, cmd *cobra.Command, args []string) error {
 
+	var cctx *ProductCommandContext
+
 	config.SetHost(host)
 
-	fx.New(
+	app := fx.New(
 		fx.Supply(config),
 		fx.Provide(
 			logger.GetLogger,
@@ -162,11 +164,32 @@ func runProductCmd(fn productCmdFunc, cmd *cobra.Command, args []string) error {
 		),
 		fx.Supply(cmd),
 		fx.Supply(args),
-		fx.Invoke(fn),
+		fx.Provide(func(
+			config *configs.Config,
+			l *zap.Logger,
+			c *connector.Connector,
+			p *product.Product,
+			cmd *cobra.Command,
+			args []string,
+		) *ProductCommandContext {
+			return &ProductCommandContext{
+				Config:    config,
+				Logger:    l,
+				Connector: c,
+				Product:   p,
+				Cmd:       cmd,
+				Args:      args,
+			}
+		}),
+		fx.Populate(&cctx),
 		fx.NopLogger,
-	).Run()
+	)
 
-	return nil
+	if err := app.Start(context.Background()); err != nil {
+		return err
+	}
+
+	return fn(cctx)
 }
 
 var productListCmd = &cobra.Command{
@@ -182,19 +205,15 @@ var productListCmd = &cobra.Command{
 	},
 }
 
-func runProductListCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductListCmd(cctx *ProductCommandContext) error {
 
-	products, err := p.GetClient().ListProducts()
+	products, err := cctx.Product.GetClient().ListProducts()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-		return
+		return err
 	}
 
 	if len(products) == 0 {
-		fmt.Println("No available products")
-		os.Exit(0)
-		return
+		return errors.New("No available products")
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -238,7 +257,7 @@ func runProductListCmd(config *configs.Config, l *zap.Logger, c *connector.Conne
 
 	table.Render()
 
-	os.Exit(0)
+	return nil
 }
 
 var productCreateCmd = &cobra.Command{
@@ -255,43 +274,39 @@ var productCreateCmd = &cobra.Command{
 	},
 }
 
-func runProductCreateCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductCreateCmd(cctx *ProductCommandContext) error {
 
 	setting := product_sdk.ProductSetting{}
-	setting.Name = args[0]
+	setting.Name = cctx.Args[0]
 
 	// Description
-	if cmd.Flags().Changed("desc") {
+	if cctx.Cmd.Flags().Changed("desc") {
 		setting.Description = productDesc
 	}
 
 	// Enable
-	if cmd.Flags().Changed("enabled") {
+	if cctx.Cmd.Flags().Changed("enabled") {
 		setting.Enabled = productEnabled
 	}
 
 	// Schema
-	if cmd.Flags().Changed("schema") {
+	if cctx.Cmd.Flags().Changed("schema") {
 		schema, err := readSchemaFile(productSchemaFile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-			return
+			return err
 		}
 
 		setting.Schema = schema
 	}
 
-	_, err := p.GetClient().CreateProduct(&setting)
+	_, err := cctx.Product.GetClient().CreateProduct(&setting)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-		return
+		return err
 	}
 
 	fmt.Printf("Product \"%s\" was created\n", setting.Name)
 
-	os.Exit(0)
+	return nil
 }
 
 var productDeleteCmd = &cobra.Command{
@@ -308,25 +323,18 @@ var productDeleteCmd = &cobra.Command{
 	},
 }
 
-func runProductDeleteCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductDeleteCmd(cctx *ProductCommandContext) error {
 
-	if len(args) == 0 {
-		os.Exit(1)
-		return
-	}
+	productName = cctx.Args[0]
 
-	productName = args[0]
-
-	err := p.GetClient().DeleteProduct(productName)
+	err := cctx.Product.GetClient().DeleteProduct(productName)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-		return
+		return err
 	}
 
 	fmt.Printf("Product \"%s\" was deleted\n", productName)
 
-	os.Exit(0)
+	return nil
 }
 
 var productUpdateCmd = &cobra.Command{
@@ -343,49 +351,43 @@ var productUpdateCmd = &cobra.Command{
 	},
 }
 
-func runProductUpdateCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductUpdateCmd(cctx *ProductCommandContext) error {
 
-	productName = args[0]
+	productName = cctx.Args[0]
 
 	// Getting product information
-	product, err := p.GetClient().GetProduct(productName)
+	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Error: Not found product \"%s\"\n", productName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	// Update description
-	if cmd.Flags().Changed("desc") {
+	if cctx.Cmd.Flags().Changed("desc") {
 		product.Description = productDesc
 	}
 
 	// Update enabled
-	if cmd.Flags().Changed("enabled") {
+	if cctx.Cmd.Flags().Changed("enabled") {
 		product.Enabled = productEnabled
 	}
 
 	// Update schema
-	if cmd.Flags().Changed("schema") {
+	if cctx.Cmd.Flags().Changed("schema") {
 		schema, err := readSchemaFile(productSchemaFile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-			return
+			return err
 		}
 
 		product.Schema = schema
 	}
 
 	// Update
-	_, err = p.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-		return
+		return err
 	}
 
-	os.Exit(0)
+	return nil
 }
 
 var productInfoCmd = &cobra.Command{
@@ -402,16 +404,14 @@ var productInfoCmd = &cobra.Command{
 	},
 }
 
-func runProductInfoCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductInfoCmd(cctx *ProductCommandContext) error {
 
-	productName = args[0]
+	productName = cctx.Args[0]
 
 	// Getting product information
-	product, err := p.GetClient().GetProduct(productName)
+	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Error: Not found product \"%s\"\n", productName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -477,7 +477,7 @@ func runProductInfoCmd(config *configs.Config, l *zap.Logger, c *connector.Conne
 		fmt.Println("")
 	}
 
-	os.Exit(0)
+	return nil
 }
 
 var productRuleCmd = &cobra.Command{
@@ -485,13 +485,13 @@ var productRuleCmd = &cobra.Command{
 	Short: "Manage rules of data product",
 }
 
-var productRuleCreateCmd = &cobra.Command{
-	Use:   "create [rule name]",
-	Short: "Create a new rule",
-	Args:  cobra.MinimumNArgs(1),
+var productRuleAddCmd = &cobra.Command{
+	Use:   "add [product] [rule name]",
+	Short: "Add a new rule to product",
+	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		if err := runProductCmd(runProductRuleCreateCmd, cmd, args); err != nil {
+		if err := runProductCmd(runProductRuleAddCmd, cmd, args); err != nil {
 			return err
 		}
 
@@ -499,35 +499,28 @@ var productRuleCreateCmd = &cobra.Command{
 	},
 }
 
-func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductRuleAddCmd(cctx *ProductCommandContext) error {
 
-	ruleName = args[0]
+	productName = cctx.Args[0]
+	ruleName = cctx.Args[1]
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Error: require flag: --product")
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("require product"))
 	}
 
 	if len(ruleEvent) == 0 {
-		fmt.Println("Error: require flag: --event")
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("require flag: --event"))
 	}
 
 	if len(ruleMethod) == 0 {
-		fmt.Println("Error: require flag: --method")
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("require flag: --method"))
 	}
 
 	// Getting product information
-	product, err := p.GetClient().GetProduct(productName)
+	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Error: Not found product \"%s\"\n", productName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
@@ -537,9 +530,7 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 		// Check whether rule does exist or not
 		_, ok := product.Rules[ruleName]
 		if ok {
-			fmt.Printf("Rule \"%s\" exists already\n", ruleName)
-			os.Exit(1)
-			return
+			return errors.New(fmt.Sprintf("Rule \"%s\" exists already\n", ruleName))
 		}
 	}
 
@@ -559,30 +550,26 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 	rule.Description = ruleDescription
 
 	// Enabled
-	if cmd.Flags().Changed("enabled") {
+	if cctx.Cmd.Flags().Changed("enabled") {
 		rule.Enabled = ruleEnabled
 	}
 
 	// Schema
-	if cmd.Flags().Changed("schema") {
+	if cctx.Cmd.Flags().Changed("schema") {
 		schema, err := readSchemaFile(ruleSchemaFile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-			return
+			return err
 		}
 
 		rule.SchemaConfig = schema
 	}
 
 	// Handler script
-	if cmd.Flags().Changed("handler") {
+	if cctx.Cmd.Flags().Changed("handler") {
 
 		script, err := readHandlerScriptFile(ruleHandlerFile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-			return
+			return err
 		}
 
 		rule.HandlerConfig = &product_sdk.HandlerConfig{
@@ -595,20 +582,18 @@ func runProductRuleCreateCmd(config *configs.Config, l *zap.Logger, c *connector
 	product.Rules[rule.Name] = rule
 
 	// Update
-	_, err = p.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-		return
+		return err
 	}
 
-	os.Exit(0)
+	return nil
 }
 
 var productRuleUpdateCmd = &cobra.Command{
-	Use:   "update [rule name]",
-	Short: "Update rule",
-	Args:  cobra.MinimumNArgs(1),
+	Use:   "update [product name] [rule name]",
+	Short: "Update rule of product",
+	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if err := runProductCmd(runProductRuleUpdateCmd, cmd, args); err != nil {
@@ -619,94 +604,79 @@ var productRuleUpdateCmd = &cobra.Command{
 	},
 }
 
-func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductRuleUpdateCmd(cctx *ProductCommandContext) error {
 
-	ruleName = args[0]
+	productName = cctx.Args[0]
+	ruleName = cctx.Args[1]
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Error: require flag: --product")
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("require product"))
 	}
 
 	// Getting product information
-	product, err := p.GetClient().GetProduct(productName)
+	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Error: Not found product \"%s\"\n", productName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
-		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
 	rule, ok := product.Rules[ruleName]
 	if !ok {
-		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
-	if cmd.Flags().Changed("event") {
+	if cctx.Cmd.Flags().Changed("event") {
 
 		if len(ruleEvent) == 0 {
-			fmt.Println("Invalid event")
-			os.Exit(1)
-			return
+			return errors.New("Invalid event")
 		}
 
 		rule.Event = ruleEvent
 	}
 
-	if cmd.Flags().Changed("method") {
+	if cctx.Cmd.Flags().Changed("method") {
 
 		if len(ruleEvent) == 0 {
-			fmt.Println("Invalid method")
-			os.Exit(1)
-			return
+			return errors.New("Invalid method")
 		}
 
 		rule.Method = ruleMethod
 	}
 
-	if cmd.Flags().Changed("pk") {
+	if cctx.Cmd.Flags().Changed("pk") {
 		rule.PrimaryKey = rulePrimaryKey
 	}
 
-	if cmd.Flags().Changed("desc") {
+	if cctx.Cmd.Flags().Changed("desc") {
 		rule.Description = ruleDescription
 	}
 
 	// Update enabled
-	if cmd.Flags().Changed("enabled") {
+	if cctx.Cmd.Flags().Changed("enabled") {
 		rule.Enabled = ruleEnabled
 	}
 
 	// Update schema
-	if cmd.Flags().Changed("schema") {
+	if cctx.Cmd.Flags().Changed("schema") {
 		schema, err := readSchemaFile(ruleSchemaFile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-			return
+			return err
 		}
 
 		rule.SchemaConfig = schema
 	}
 
 	// Handler script
-	if cmd.Flags().Changed("handler") {
+	if cctx.Cmd.Flags().Changed("handler") {
 
 		script, err := readHandlerScriptFile(ruleHandlerFile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-			return
+			return err
 		}
 
 		rule.HandlerConfig = &product_sdk.HandlerConfig{
@@ -718,19 +688,18 @@ func runProductRuleUpdateCmd(config *configs.Config, l *zap.Logger, c *connector
 	rule.UpdatedAt = time.Now()
 
 	// Update
-	_, err = p.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-		return
+		return err
 	}
 
-	os.Exit(0)
+	return nil
 }
 
 var productRuleListCmd = &cobra.Command{
-	Use:   "list",
+	Use:   "list [product name]",
 	Short: "List available rules",
+	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if err := runProductCmd(runProductRuleListCmd, cmd, args); err != nil {
@@ -741,27 +710,23 @@ var productRuleListCmd = &cobra.Command{
 	},
 }
 
-func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductRuleListCmd(cctx *ProductCommandContext) error {
+
+	productName = cctx.Args[0]
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Error: require flag: --product")
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("require product"))
 	}
 
 	// Getting product information
-	product, err := p.GetClient().GetProduct(productName)
+	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Error: Not found product \"%s\"\n", productName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
-		fmt.Println("No available rules")
-		os.Exit(1)
-		return
+		return errors.New("No available rules")
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -816,13 +781,13 @@ func runProductRuleListCmd(config *configs.Config, l *zap.Logger, c *connector.C
 
 	table.Render()
 
-	os.Exit(0)
+	return nil
 }
 
 var productRuleDeleteCmd = &cobra.Command{
-	Use:   "delete [rule name]",
+	Use:   "delete [product name] [rule name]",
 	Short: "Delete rule",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if err := runProductCmd(runProductRuleDeleteCmd, cmd, args); err != nil {
@@ -833,56 +798,47 @@ var productRuleDeleteCmd = &cobra.Command{
 	},
 }
 
-func runProductRuleDeleteCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductRuleDeleteCmd(cctx *ProductCommandContext) error {
 
-	ruleName = args[0]
+	productName = cctx.Args[0]
+	ruleName = cctx.Args[1]
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Error: require flag: --product")
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("require product"))
 	}
 
 	// Getting product information
-	product, err := p.GetClient().GetProduct(productName)
+	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Error: Not found product \"%s\"\n", productName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
-		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
 	_, ok := product.Rules[ruleName]
 	if !ok {
-		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	delete(product.Rules, ruleName)
 
 	// Update
-	_, err = p.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-		return
+		return err
 	}
 
-	os.Exit(0)
+	return nil
 }
 
 var productRuleInfoCmd = &cobra.Command{
-	Use:   "info [product name]",
+	Use:   "info [product name] [rule name]",
 	Short: "Show information about rule",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if err := runProductCmd(runProductRuleInfoCmd, cmd, args); err != nil {
@@ -893,37 +849,30 @@ var productRuleInfoCmd = &cobra.Command{
 	},
 }
 
-func runProductRuleInfoCmd(config *configs.Config, l *zap.Logger, c *connector.Connector, p *product.Product, cmd *cobra.Command, args []string) {
+func runProductRuleInfoCmd(cctx *ProductCommandContext) error {
 
-	ruleName = args[0]
+	productName = cctx.Args[0]
+	ruleName = cctx.Args[1]
 
 	// Validate product name
 	if len(productName) == 0 {
-		fmt.Println("Error: require flag: --product")
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("require product"))
 	}
 
 	// Getting product information
-	product, err := p.GetClient().GetProduct(productName)
+	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
-		fmt.Printf("Error: Not found product \"%s\"\n", productName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
-		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
 	rule, ok := product.Rules[ruleName]
 	if !ok {
-		fmt.Printf("Error: Not found rule \"%s\"\n", ruleName)
-		os.Exit(1)
-		return
+		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -1020,5 +969,5 @@ func runProductRuleInfoCmd(config *configs.Config, l *zap.Logger, c *connector.C
 		fmt.Println("")
 	}
 
-	os.Exit(0)
+	return nil
 }
