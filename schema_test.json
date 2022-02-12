@@ -1,13 +1,7 @@
 {
-	"collections": {
-		"accounts": {
-			"schema": {
-				"id": { "type": "uint" },
-				"name": { "type": "string" },
-				"type": { "type": "string" },
-				"phone": { "type": "string" },
-				"address": { "type": "string" }
-			}
-		}
-	}
+	"id": { "type": "uint" },
+	"name": { "type": "string" },
+	"type": { "type": "string" },
+	"phone": { "type": "string" },
+	"address": { "type": "string" }
 }
