@@ -299,6 +299,8 @@ func runProductCreateCmd(cctx *ProductCommandContext) error {
 		setting.Schema = schema
 	}
 
+	setting.Stream = fmt.Sprintf("GRAVITY.%s.DP.%s", domain, setting.Name)
+
 	_, err := cctx.Product.GetClient().CreateProduct(&setting)
 	if err != nil {
 		return err
@@ -354,6 +356,7 @@ var productUpdateCmd = &cobra.Command{
 func runProductUpdateCmd(cctx *ProductCommandContext) error {
 
 	productName = cctx.Args[0]
+	changed := false
 
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
@@ -364,11 +367,13 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 	// Update description
 	if cctx.Cmd.Flags().Changed("desc") {
 		product.Description = productDesc
+		changed = true
 	}
 
 	// Update enabled
 	if cctx.Cmd.Flags().Changed("enabled") {
 		product.Enabled = productEnabled
+		changed = true
 	}
 
 	// Update schema
@@ -379,7 +384,15 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 		}
 
 		product.Schema = schema
+		changed = true
 	}
+
+	// Nothing's changed
+	if !changed {
+		return nil
+	}
+
+	product.Stream = fmt.Sprintf("GRAVITY.%s.DP.%s", domain, productName)
 
 	// Update
 	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
@@ -448,6 +461,11 @@ func runProductInfoCmd(cctx *ProductCommandContext) error {
 	table.Append([]string{
 		"Status:",
 		status,
+	})
+
+	table.Append([]string{
+		"Stream:",
+		product.Stream,
 	})
 
 	table.Append([]string{

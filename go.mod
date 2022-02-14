@@ -11,7 +11,7 @@ require (
 	github.com/manifoldco/promptui v0.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.0.0
+	github.com/spf13/cobra v1.3.0
 	github.com/spf13/viper v1.10.1
 	go.uber.org/fx v1.16.0
 	go.uber.org/zap v1.17.0
