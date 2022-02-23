@@ -922,6 +922,11 @@ func runProductRuleInfoCmd(cctx *ProductCommandContext) error {
 		rule.Description,
 	})
 
+	table.Append([]string{
+		"Event:",
+		rule.Event,
+	})
+
 	var status string
 	if rule.Enabled {
 		status = "enabled"
