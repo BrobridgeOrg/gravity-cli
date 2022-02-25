@@ -15,11 +15,15 @@ import (
 	"github.com/BrobridgeOrg/gravity-cli/pkg/logger"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/product"
 	product_sdk "github.com/BrobridgeOrg/gravity-sdk/product"
+	subscriber_sdk "github.com/BrobridgeOrg/gravity-sdk/subscriber"
+	gravity_sdk_types_record "github.com/BrobridgeOrg/gravity-sdk/types/record"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 type ProductCommandContext struct {
@@ -38,6 +42,10 @@ var productName string
 var productDesc string
 var productEnabled bool
 var productSchemaFile string
+
+// product subscriber
+var productSubscriberName string
+var productSubscriberStartSeq uint64
 
 // Rule flags
 var ruleName string
@@ -69,6 +77,11 @@ func init() {
 
 	// Show product information
 	productCmd.AddCommand(productInfoCmd)
+
+	// Subscribe product
+	productCmd.AddCommand(productSubCmd)
+	productSubCmd.Flags().StringVar(&productSubscriberName, "name", "", "Specify subscriber name")
+	productSubCmd.Flags().Uint64Var(&productSubscriberStartSeq, "seq", 1, "Specify start sequence")
 
 	// Rule
 	productCmd.AddCommand(productRuleCmd)
@@ -494,6 +507,76 @@ func runProductInfoCmd(cctx *ProductCommandContext) error {
 		fmt.Println(string(schema))
 		fmt.Println("")
 	}
+
+	return nil
+}
+
+var productSubCmd = &cobra.Command{
+	Use:   "sub [product name]",
+	Short: "Generic subscription client for product",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runProductCmd(runProductSubCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runProductSubCmd(cctx *ProductCommandContext) error {
+
+	productName = cctx.Args[0]
+
+	fmt.Printf("Subscribing to product: %s\n", productName)
+
+	if len(productSubscriberName) > 0 {
+		fmt.Printf("Subscriber name: %s\n", productSubscriberName)
+	}
+
+	fmt.Printf("Start Sequence: %d\n", productSubscriberStartSeq)
+
+	// Initializing gravity subscriber
+	opts := subscriber_sdk.NewOptions()
+	opts.Verbose = true
+	s := subscriber_sdk.NewSubscriberWithClient(productSubscriberName, cctx.Connector.GetClient(), opts)
+	_, err := s.Subscribe(productName, func(msg *nats.Msg) {
+
+		var record gravity_sdk_types_record.Record
+
+		err := proto.Unmarshal(msg.Data, &record)
+		if err != nil {
+			fmt.Printf("Failed to parsing record: %v", err)
+			msg.Ack()
+			return
+		}
+
+		md, _ := msg.Metadata()
+
+		// Convert data to JSON
+		event := map[string]interface{}{
+			"header":     msg.Header,
+			"subject":    msg.Subject,
+			"seq":        md.Sequence.Consumer,
+			"timestamp":  md.Timestamp,
+			"product":    productName,
+			"event":      record.EventName,
+			"method":     record.Method.String(),
+			"table":      record.Table,
+			"primaryKey": record.PrimaryKey,
+			"payload":    gravity_sdk_types_record.ConvertFieldsToMap(record.Fields),
+		}
+
+		data, _ := json.MarshalIndent(event, "", "  ")
+		fmt.Println(string(data))
+	}, subscriber_sdk.Partition(-1), subscriber_sdk.StartSequence(productSubscriberStartSeq))
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	select {}
 
 	return nil
 }
