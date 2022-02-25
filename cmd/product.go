@@ -26,6 +26,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	productEventStream = "GVT_%s_DP_%s"
+)
+
 type ProductCommandContext struct {
 	Config    *configs.Config
 	Logger    *zap.Logger
@@ -226,6 +230,7 @@ func runProductListCmd(cctx *ProductCommandContext) error {
 	}
 
 	if len(products) == 0 {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New("No available products")
 	}
 
@@ -312,7 +317,7 @@ func runProductCreateCmd(cctx *ProductCommandContext) error {
 		setting.Schema = schema
 	}
 
-	setting.Stream = fmt.Sprintf("GRAVITY.%s.DP.%s", domain, setting.Name)
+	setting.Stream = fmt.Sprintf(productEventStream, domain, setting.Name)
 
 	_, err := cctx.Product.GetClient().CreateProduct(&setting)
 	if err != nil {
@@ -374,6 +379,7 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
@@ -405,7 +411,7 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 		return nil
 	}
 
-	product.Stream = fmt.Sprintf("GRAVITY.%s.DP.%s", domain, productName)
+	product.Stream = fmt.Sprintf(productEventStream, domain, productName)
 
 	// Update
 	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
@@ -437,6 +443,7 @@ func runProductInfoCmd(cctx *ProductCommandContext) error {
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
@@ -572,8 +579,8 @@ func runProductSubCmd(cctx *ProductCommandContext) error {
 		fmt.Println(string(data))
 	}, subscriber_sdk.Partition(-1), subscriber_sdk.StartSequence(productSubscriberStartSeq))
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		cctx.Cmd.SilenceUsage = true
+		return err
 	}
 
 	select {}
@@ -621,6 +628,7 @@ func runProductRuleAddCmd(cctx *ProductCommandContext) error {
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
@@ -631,6 +639,7 @@ func runProductRuleAddCmd(cctx *ProductCommandContext) error {
 		// Check whether rule does exist or not
 		_, ok := product.Rules[ruleName]
 		if ok {
+			cctx.Cmd.SilenceUsage = true
 			return errors.New(fmt.Sprintf("Rule \"%s\" exists already\n", ruleName))
 		}
 	}
@@ -718,16 +727,19 @@ func runProductRuleUpdateCmd(cctx *ProductCommandContext) error {
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
 	rule, ok := product.Rules[ruleName]
 	if !ok {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
@@ -823,10 +835,12 @@ func runProductRuleListCmd(cctx *ProductCommandContext) error {
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New("No available rules")
 	}
 
@@ -912,16 +926,19 @@ func runProductRuleDeleteCmd(cctx *ProductCommandContext) error {
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
 	_, ok := product.Rules[ruleName]
 	if !ok {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
@@ -963,16 +980,19 @@ func runProductRuleInfoCmd(cctx *ProductCommandContext) error {
 	// Getting product information
 	product, err := cctx.Product.GetClient().GetProduct(productName)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
 	if product.Rules == nil {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
 	rule, ok := product.Rules[ruleName]
 	if !ok {
+		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 

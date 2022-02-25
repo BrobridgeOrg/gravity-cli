@@ -16,7 +16,7 @@ const (
 	DefaultMaxPingsOutstanding = 3
 	DefaultMaxReconnects       = -1
 	DefaultAccessKey           = ""
-	DefaultDomain              = "gravity"
+	DefaultDomain              = "default"
 )
 
 type Connector struct {

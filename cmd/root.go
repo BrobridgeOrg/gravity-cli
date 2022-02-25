@@ -31,7 +31,7 @@ func init() {
 	config = configs.GetConfig()
 
 	RootCmd.PersistentFlags().StringVarP(&host, "host", "s", "0.0.0.0:32803", "Specify server address")
-	RootCmd.PersistentFlags().StringVarP(&domain, "domain", "d", "gravity", "Specify data domain")
+	RootCmd.PersistentFlags().StringVarP(&domain, "domain", "d", "default", "Specify data domain")
 }
 
 func run() error {
