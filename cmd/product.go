@@ -66,7 +66,6 @@ func init() {
 
 	RootCmd.AddCommand(productCmd)
 	productCmd.AddCommand(productListCmd)
-	productCmd.AddCommand(productDeleteCmd)
 
 	// Create product
 	productCmd.AddCommand(productCreateCmd)
@@ -79,6 +78,10 @@ func init() {
 	productUpdateCmd.Flags().StringVar(&productDesc, "desc", "", "Specify description")
 	productUpdateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable produc")
 	productUpdateCmd.Flags().StringVar(&productSchemaFile, "schema", "", "Load schema from specific file")
+
+	// Delete and purge product
+	productCmd.AddCommand(productDeleteCmd)
+	productCmd.AddCommand(productPurgeCmd)
 
 	// Show product information
 	productCmd.AddCommand(productInfoCmd)
@@ -420,6 +423,35 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+var productPurgeCmd = &cobra.Command{
+	Use:   "purge [product name]",
+	Short: "purge a data product without deleting it",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runProductCmd(runProductPurgeCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runProductPurgeCmd(cctx *ProductCommandContext) error {
+
+	productName = cctx.Args[0]
+
+	err := cctx.Product.GetClient().PurgeProduct(productName)
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return err
+	}
+
+	fmt.Printf("Product \"%s\" was purged\n", productName)
 
 	return nil
 }
