@@ -50,6 +50,7 @@ var productSchemaFile string
 // product subscriber
 var productSubscriberName string
 var productSubscriberStartSeq uint64
+var productSubscriberPartitions []int
 
 // Rule flags
 var ruleName string
@@ -86,6 +87,7 @@ func init() {
 	productCmd.AddCommand(productSubCmd)
 	productSubCmd.Flags().StringVar(&productSubscriberName, "name", "", "Specify subscriber name")
 	productSubCmd.Flags().Uint64Var(&productSubscriberStartSeq, "seq", 1, "Specify start sequence")
+	productSubCmd.Flags().IntSliceVar(&productSubscriberPartitions, "partitions", []int{-1}, "Specify partitions (default -1 for all)")
 
 	// Rule
 	productCmd.AddCommand(productRuleCmd)
@@ -577,7 +579,7 @@ func runProductSubCmd(cctx *ProductCommandContext) error {
 
 		data, _ := json.MarshalIndent(event, "", "  ")
 		fmt.Println(string(data))
-	}, subscriber_sdk.Partition(-1), subscriber_sdk.StartSequence(productSubscriberStartSeq))
+	}, subscriber_sdk.Partition(productSubscriberPartitions...), subscriber_sdk.StartSequence(productSubscriberStartSeq))
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
 		return err
