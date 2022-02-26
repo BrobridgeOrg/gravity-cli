@@ -2,18 +2,22 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/BrobridgeOrg/gravity-cli/pkg/configs"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/logger"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/product"
-	adapter_sdk "github.com/BrobridgeOrg/gravity-sdk/adapter"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
-type PubCommandContext struct {
+const (
+	domainEventStream = "GVT_%s"
+)
+
+type DomainCommandContext struct {
 	Config    *configs.Config
 	Logger    *zap.Logger
 	Connector *connector.Connector
@@ -22,23 +26,20 @@ type PubCommandContext struct {
 	Args      []string
 }
 
-type pubCmdFunc func(*PubCommandContext) error
-
-var pubEvent string
-var pubPayload string
+type domainCmdFunc func(*DomainCommandContext) error
 
 func init() {
 
-	RootCmd.AddCommand(pubCmd)
+	RootCmd.AddCommand(domainPurgeCmd)
 }
 
-var pubCmd = &cobra.Command{
-	Use:   "pub [event]",
-	Short: "Publish domain event",
-	Args:  cobra.MinimumNArgs(2),
+var domainPurgeCmd = &cobra.Command{
+	Use:   "purge event",
+	Short: "Purge domain event",
+	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		if err := runPubCmd(runPublishCmd, cmd, args); err != nil {
+		if err := runDomainCmd(runDomainPurgeCmd, cmd, args); err != nil {
 			return err
 		}
 
@@ -46,9 +47,9 @@ var pubCmd = &cobra.Command{
 	},
 }
 
-func runPubCmd(fn pubCmdFunc, cmd *cobra.Command, args []string) error {
+func runDomainCmd(fn domainCmdFunc, cmd *cobra.Command, args []string) error {
 
-	var cctx *PubCommandContext
+	var cctx *DomainCommandContext
 
 	config.SetHost(host)
 
@@ -67,8 +68,8 @@ func runPubCmd(fn pubCmdFunc, cmd *cobra.Command, args []string) error {
 			c *connector.Connector,
 			cmd *cobra.Command,
 			args []string,
-		) *PubCommandContext {
-			return &PubCommandContext{
+		) *DomainCommandContext {
+			return &DomainCommandContext{
 				Config:    config,
 				Logger:    l,
 				Connector: c,
@@ -87,17 +88,17 @@ func runPubCmd(fn pubCmdFunc, cmd *cobra.Command, args []string) error {
 	return fn(cctx)
 }
 
-func runPublishCmd(cctx *PubCommandContext) error {
+func runDomainPurgeCmd(cctx *DomainCommandContext) error {
 
-	pubEvent = cctx.Args[0]
-	pubPayload = cctx.Args[1]
+	js, err := cctx.Connector.GetClient().GetJetStream()
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return err
+	}
 
-	// Initializing adapter connector
-	opts := adapter_sdk.NewOptions()
-	opts.Domain = cctx.Connector.GetDomain()
+	streamName := fmt.Sprintf(domainEventStream, cctx.Connector.GetDomain())
 
-	ac := adapter_sdk.NewAdapterConnectorWithClient(cctx.Connector.GetClient(), opts)
-	_, err := ac.Publish(pubEvent, []byte(pubPayload), nil)
+	err = js.PurgeStream(streamName)
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
 		return err
