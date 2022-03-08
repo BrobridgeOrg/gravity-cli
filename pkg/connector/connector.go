@@ -1,13 +1,17 @@
 package connector
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/BrobridgeOrg/gravity-sdk/core"
 	"github.com/spf13/viper"
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
+
+var logger *zap.Logger
 
 const (
 	DefaultHost                = "0.0.0.0"
@@ -25,27 +29,30 @@ type Connector struct {
 	domain string
 }
 
-func New(logger *zap.Logger) *Connector {
+func New(lifecycle fx.Lifecycle, l *zap.Logger) *Connector {
 
-	c := &Connector{
-		client: core.NewClient(),
-		logger: logger,
-	}
+	logger = l.Named("Connector")
 
-	c.initialize()
+	c := &Connector{}
+
+	//c.initialize()
+
+	lifecycle.Append(
+		fx.Hook{
+			OnStart: func(context.Context) error {
+				return c.initialize()
+			},
+			OnStop: func(ctx context.Context) error {
+				c.client.Disconnect()
+				return nil
+			},
+		},
+	)
 
 	return c
 }
 
-func (c *Connector) initialize() {
-
-	err := c.connect()
-	if err != nil {
-		c.logger.Error(err.Error())
-	}
-}
-
-func (c *Connector) connect() error {
+func (c *Connector) initialize() error {
 
 	// default domain and access key
 	viper.SetDefault("gravity.domain", DefaultDomain)
@@ -58,8 +65,25 @@ func (c *Connector) connect() error {
 	viper.SetDefault("gravity.maxPingsOutstanding", DefaultMaxPingsOutstanding)
 	viper.SetDefault("gravity.maxReconnects", DefaultMaxReconnects)
 
-	// Read configs
+	// Get domain
 	domain := viper.GetString("gravity.domain")
+	c.domain = domain
+
+	// Initializing client
+	client, err := c.CreateClient()
+	if err != nil {
+		//c.logger.Error(err.Error())
+		return err
+	}
+
+	c.client = client
+
+	return nil
+}
+
+func (c *Connector) CreateClient() (*core.Client, error) {
+
+	// Read configs
 	//	accessKey := viper.GetString("gravity.accessKey")
 	host := viper.GetString("gravity.host")
 	port := viper.GetInt("gravity.port")
@@ -74,23 +98,16 @@ func (c *Connector) connect() error {
 	options.MaxReconnects = maxReconnects
 
 	address := fmt.Sprintf("%s:%d", host, port)
-	/*
-		c.logger.Info("Connecting to Gravity Network...",
-			zap.String("domain", domain),
-			zap.String("address", address),
-			zap.Duration("pingInterval", options.PingInterval),
-			zap.Int("maxPingsOutstanding", options.MaxPingsOutstanding),
-			zap.Int("maxReconnects", options.MaxReconnects),
-		)
-	*/
-	c.domain = domain
 
-	// Initializing keyring
-	//keyInfo := synchronizer.keyring.Put("gravity", accessKey)
-	//keyInfo.Permission().AddPermissions([]string{"SYSTEM"})
+	//fmt.Printf("Connecting to Gravity Network: %s/%s\n", address, domain)
 
-	// Connect
-	return c.client.Connect(address, options)
+	client := core.NewClient()
+	err := client.Connect(address, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
 func (c *Connector) GetClient() *core.Client {

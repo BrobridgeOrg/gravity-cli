@@ -1,9 +1,13 @@
 package product
 
 import (
+	"context"
+	"errors"
+
 	"github.com/BrobridgeOrg/gravity-cli/pkg/configs"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-sdk/product"
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
@@ -15,27 +19,38 @@ type Product struct {
 	productClient *product.ProductClient
 }
 
-func New(config *configs.Config, l *zap.Logger, c *connector.Connector) *Product {
+func New(lifecycle fx.Lifecycle, config *configs.Config, l *zap.Logger, c *connector.Connector) *Product {
 
-	logger = l
+	logger = l.Named("Product")
 
 	p := &Product{
 		config:    config,
 		connector: c,
 	}
 
-	pcOpts := product.NewOptions()
-	pcOpts.Domain = c.GetDomain()
-	productClient := product.NewProductClient(
-		c.GetClient(),
-		pcOpts,
+	lifecycle.Append(
+		fx.Hook{
+			OnStart: func(context.Context) error {
+				pcOpts := product.NewOptions()
+				pcOpts.Domain = c.GetDomain()
+				productClient := product.NewProductClient(
+					c.GetClient(),
+					pcOpts,
+				)
+
+				if productClient == nil {
+					return errors.New("Failed to create product client")
+				}
+
+				p.productClient = productClient
+
+				return nil
+			},
+			OnStop: func(ctx context.Context) error {
+				return nil
+			},
+		},
 	)
-
-	if productClient == nil {
-		return nil
-	}
-
-	p.productClient = productClient
 
 	return p
 }

@@ -14,13 +14,15 @@ import (
 )
 
 const (
-	domainEventStream = "GVT_%s"
+	domainEventStream  = "GVT_%s"
+	domainEventSubject = "$GVT.%s.EVENT.%s"
 )
 
 type DomainCommandContext struct {
 	Config    *configs.Config
 	Logger    *zap.Logger
 	Connector *connector.Connector
+	Publisher *connector.Connector
 	Product   *product.Product
 	Cmd       *cobra.Command
 	Args      []string
@@ -66,6 +68,7 @@ func runDomainCmd(fn domainCmdFunc, cmd *cobra.Command, args []string) error {
 			config *configs.Config,
 			l *zap.Logger,
 			c *connector.Connector,
+			publisher *connector.Connector,
 			cmd *cobra.Command,
 			args []string,
 		) *DomainCommandContext {
@@ -73,6 +76,7 @@ func runDomainCmd(fn domainCmdFunc, cmd *cobra.Command, args []string) error {
 				Config:    config,
 				Logger:    l,
 				Connector: c,
+				Publisher: publisher,
 				Cmd:       cmd,
 				Args:      args,
 			}

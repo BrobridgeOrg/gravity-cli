@@ -7,6 +7,7 @@ require (
 	github.com/BrobridgeOrg/gravity-dispatcher v0.0.0-20220206181110-2ea65aa048be
 	github.com/BrobridgeOrg/gravity-sdk v0.0.50
 	github.com/bketelsen/crypt v0.0.4 // indirect
+	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.1.2
 	github.com/manifoldco/promptui v0.8.0
 	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d

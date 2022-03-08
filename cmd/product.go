@@ -605,7 +605,7 @@ func runProductSubCmd(cctx *ProductCommandContext) error {
 			"event":      record.EventName,
 			"method":     record.Method.String(),
 			"table":      record.Table,
-			"primaryKey": record.PrimaryKey,
+			"primaryKey": record.PrimaryKeys,
 			"payload":    gravity_sdk_types_record.ConvertFieldsToMap(record.Fields),
 		}
 
