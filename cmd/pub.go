@@ -33,7 +33,7 @@ func init() {
 }
 
 var pubCmd = &cobra.Command{
-	Use:   "pub [event]",
+	Use:   "pub [event] [payload]",
 	Short: "Publish domain event",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {

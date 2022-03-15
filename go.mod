@@ -20,4 +20,6 @@ require (
 	google.golang.org/protobuf v1.27.1
 )
 
+replace github.com/BrobridgeOrg/compton => ../../compton
+
 replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk

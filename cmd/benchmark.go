@@ -10,7 +10,7 @@ import (
 	adapter_sdk "github.com/BrobridgeOrg/gravity-sdk/adapter"
 	product_sdk "github.com/BrobridgeOrg/gravity-sdk/product"
 	subscriber_sdk "github.com/BrobridgeOrg/gravity-sdk/subscriber"
-	gravity_sdk_types_record "github.com/BrobridgeOrg/gravity-sdk/types/record"
+	gravity_sdk_types_product_event "github.com/BrobridgeOrg/gravity-sdk/types/product_event"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/spf13/cobra"
@@ -191,19 +191,26 @@ func doBenchmark(cctx *ProductCommandContext) error {
 	s := subscriber_sdk.NewSubscriberWithClient("", cctx.Connector.GetClient(), opts)
 	sub, err := s.Subscribe(productName, func(msg *nats.Msg) {
 
-		var record gravity_sdk_types_record.Record
+		var pe gravity_sdk_types_product_event.ProductEvent
 
-		err := proto.Unmarshal(msg.Data, &record)
+		err := proto.Unmarshal(msg.Data, &pe)
 		if err != nil {
-			fmt.Printf("Failed to parsing record: %v", err)
+			fmt.Printf("Failed to parsing product event: %v", err)
+			msg.Ack()
+			return
+		}
+
+		r, err := pe.GetContent()
+		if err != nil {
+			fmt.Printf("Failed to parsing content: %v", err)
 			msg.Ack()
 			return
 		}
 
 		var ts uint64
-		for _, field := range record.Fields {
+		for _, field := range r.Payload.Map.Fields {
 			if field.Name == "ts" {
-				ts = gravity_sdk_types_record.GetValueData(field.Value).(uint64)
+				ts = field.Value.GetData().(uint64)
 				break
 			}
 		}

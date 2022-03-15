@@ -16,7 +16,7 @@ import (
 	"github.com/BrobridgeOrg/gravity-cli/pkg/product"
 	product_sdk "github.com/BrobridgeOrg/gravity-sdk/product"
 	subscriber_sdk "github.com/BrobridgeOrg/gravity-sdk/subscriber"
-	gravity_sdk_types_record "github.com/BrobridgeOrg/gravity-sdk/types/record"
+	gravity_sdk_types_product_event "github.com/BrobridgeOrg/gravity-sdk/types/product_event"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/olekukonko/tablewriter"
@@ -584,16 +584,23 @@ func runProductSubCmd(cctx *ProductCommandContext) error {
 	s := subscriber_sdk.NewSubscriberWithClient(productSubscriberName, cctx.Connector.GetClient(), opts)
 	_, err := s.Subscribe(productName, func(msg *nats.Msg) {
 
-		var record gravity_sdk_types_record.Record
+		var pe gravity_sdk_types_product_event.ProductEvent
 
-		err := proto.Unmarshal(msg.Data, &record)
+		err := proto.Unmarshal(msg.Data, &pe)
 		if err != nil {
-			fmt.Printf("Failed to parsing record: %v", err)
+			fmt.Printf("Failed to parsing product event: %v", err)
 			msg.Ack()
 			return
 		}
 
 		md, _ := msg.Metadata()
+
+		r, err := pe.GetContent()
+		if err != nil {
+			fmt.Printf("Failed to parsing content: %v", err)
+			msg.Ack()
+			return
+		}
 
 		// Convert data to JSON
 		event := map[string]interface{}{
@@ -602,11 +609,11 @@ func runProductSubCmd(cctx *ProductCommandContext) error {
 			"seq":        md.Sequence.Consumer,
 			"timestamp":  md.Timestamp,
 			"product":    productName,
-			"event":      record.EventName,
-			"method":     record.Method.String(),
-			"table":      record.Table,
-			"primaryKey": record.PrimaryKeys,
-			"payload":    gravity_sdk_types_record.ConvertFieldsToMap(record.Fields),
+			"event":      pe.EventName,
+			"method":     pe.Method.String(),
+			"table":      pe.Table,
+			"primaryKey": pe.PrimaryKeys,
+			"payload":    r.AsMap(),
 		}
 
 		data, _ := json.MarshalIndent(event, "", "  ")
