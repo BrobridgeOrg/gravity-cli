@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	record_type "github.com/BrobridgeOrg/compton/types/record"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/configs"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/logger"
@@ -91,6 +92,9 @@ func init() {
 	productSubCmd.Flags().StringVar(&productSubscriberName, "name", "", "Specify subscriber name")
 	productSubCmd.Flags().Uint64Var(&productSubscriberStartSeq, "seq", 1, "Specify start sequence")
 	productSubCmd.Flags().IntSliceVar(&productSubscriberPartitions, "partitions", []int{-1}, "Specify partitions (default -1 for all)")
+
+	// Snapshot
+	productCmd.AddCommand(productSnapshotCmd)
 
 	// Rule
 	productCmd.AddCommand(productRuleCmd)
@@ -324,6 +328,9 @@ func runProductCreateCmd(cctx *ProductCommandContext) error {
 
 	setting.Stream = fmt.Sprintf(productEventStream, domain, setting.Name)
 
+	// Snapshot
+	setting.EnabledSnapshot = true
+
 	_, err := cctx.Product.GetClient().CreateProduct(&setting)
 	if err != nil {
 		return err
@@ -417,6 +424,8 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 	}
 
 	product.Stream = fmt.Sprintf(productEventStream, domain, productName)
+
+	product.EnabledSnapshot = true
 
 	// Update
 	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
@@ -988,6 +997,7 @@ func runProductRuleDeleteCmd(cctx *ProductCommandContext) error {
 	// Update
 	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return err
 	}
 
@@ -1134,6 +1144,76 @@ func runProductRuleInfoCmd(cctx *ProductCommandContext) error {
 		fmt.Println("")
 		fmt.Println(rule.HandlerConfig.Script)
 		fmt.Println("")
+	}
+
+	return nil
+}
+
+var productSnapshotCmd = &cobra.Command{
+	Use:   "snapshot [product name]",
+	Short: "Take snapshot from product",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runProductCmd(runProductSnapshotCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runProductSnapshotCmd(cctx *ProductCommandContext) error {
+
+	productName = cctx.Args[0]
+
+	// Getting product information
+	product, err := cctx.Product.GetClient().GetProduct(productName)
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
+	}
+
+	if !product.EnabledSnapshot {
+		cctx.Cmd.SilenceUsage = true
+		return errors.New("Product snapshot is not enabled")
+	}
+
+	// Create new snapshot
+	s, err := cctx.Product.GetClient().CreateSnapshot(productName)
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return err
+	}
+
+	// Fetch records
+	msgs, err := s.Fetch()
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return err
+	}
+
+	for msg := range msgs {
+
+		fmt.Println(string(msg.Data))
+		var r record_type.Record
+		err := record_type.Unmarshal(msg.Data, &r)
+		if err != nil {
+			cctx.Cmd.SilenceUsage = true
+			return err
+		}
+
+		// Convert data to JSON
+		data, _ := json.MarshalIndent(r.AsMap(), "", "  ")
+		fmt.Println(string(data))
+
+		msg.Ack()
+	}
+
+	err = s.Close()
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return err
 	}
 
 	return nil

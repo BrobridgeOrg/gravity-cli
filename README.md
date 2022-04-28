@@ -16,6 +16,13 @@ Currently, Gravity CLI supports:
 
 * Product Management
 * Rule Management
+* Token Management
+
+### Publish event
+
+```shell
+gravity-cli pub accountCreated '{"id":4,"name":"fred"}'
+```
 
 ---
 

@@ -3,6 +3,7 @@ module github.com/BrobridgeOrg/gravity-cli
 go 1.15
 
 require (
+	github.com/BrobridgeOrg/compton v0.0.0-20220315055918-5c0ee958b7d2
 	github.com/BrobridgeOrg/gravity-api v0.2.25
 	github.com/BrobridgeOrg/gravity-dispatcher v0.0.0-20220206181110-2ea65aa048be
 	github.com/BrobridgeOrg/gravity-sdk v0.0.50
