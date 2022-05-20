@@ -36,6 +36,7 @@ type tokenCmdFunc func(*TokenCommandContext) error
 func init() {
 
 	RootCmd.AddCommand(tokenCmd)
+	tokenCmd.AddCommand(tokenListAvailablePermissionsCmd)
 	tokenCmd.AddCommand(tokenListCmd)
 	tokenCmd.AddCommand(tokenDeleteCmd)
 	tokenCmd.AddCommand(tokenInfoCmd)
@@ -49,6 +50,12 @@ func init() {
 	tokenCmd.AddCommand(tokenUpdateCmd)
 	tokenUpdateCmd.Flags().StringVar(&tokenDesc, "desc", "", "Specify description")
 	tokenUpdateCmd.Flags().BoolVar(&tokenEnabled, "enabled", true, "Enable token (default true)")
+
+	// Grant
+	tokenCmd.AddCommand(tokenGrantCmd)
+
+	// Revoke
+	tokenCmd.AddCommand(tokenRevokeCmd)
 }
 
 var tokenCmd = &cobra.Command{
@@ -99,6 +106,61 @@ func runTokenCmd(fn tokenCmdFunc, cmd *cobra.Command, args []string) error {
 	return fn(cctx)
 }
 
+var tokenListAvailablePermissionsCmd = &cobra.Command{
+	Use:   "list_available_permissions",
+	Short: "List available permissions",
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runTokenCmd(runTokenListAvailablePermissionsCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runTokenListAvailablePermissionsCmd(cctx *TokenCommandContext) error {
+
+	permissions, err := cctx.Token.GetClient().ListAvailablePermissions()
+	if err != nil {
+		return err
+	}
+
+	if permissions == nil {
+		cctx.Cmd.SilenceUsage = true
+		return errors.New("No available permissions")
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{
+		"Permissions",
+		"Description",
+	})
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(true)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("-")
+	table.SetHeaderLine(true)
+	table.SetBorder(false)
+	table.SetTablePadding("\t")
+	table.SetNoWhiteSpace(true)
+
+	for perm, desc := range permissions {
+
+		table.Append([]string{
+			perm,
+			desc,
+		})
+	}
+
+	table.Render()
+
+	return nil
+}
+
 var tokenListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available tokens",
@@ -129,7 +191,7 @@ func runTokenListCmd(cctx *TokenCommandContext) error {
 		"Token ID",
 		"Description",
 		"Status",
-		"Products",
+		"Permissions",
 		"Updated",
 		"Created",
 	})
@@ -157,7 +219,7 @@ func runTokenListCmd(cctx *TokenCommandContext) error {
 			t.ID,
 			t.Description,
 			status,
-			strconv.Itoa(len(t.Products)),
+			strconv.Itoa(len(t.Permissions)),
 			t.UpdatedAt.String(),
 			t.CreatedAt.String(),
 		})
@@ -198,12 +260,13 @@ func runTokenCreateCmd(cctx *TokenCommandContext) error {
 	// Generate token ID
 	id, _ := uuid.NewUUID()
 
-	_, err := cctx.Token.GetClient().CreateToken(id.String(), &setting)
+	token, _, err := cctx.Token.GetClient().CreateToken(id.String(), &setting)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Created access token: %s\n", id.String())
+	fmt.Printf("Created access token ID: %s\n", id.String())
+	fmt.Printf("Token: %s\n", token)
 
 	return nil
 }
@@ -237,7 +300,7 @@ func runTokenDeleteCmd(cctx *TokenCommandContext) error {
 }
 
 var tokenUpdateCmd = &cobra.Command{
-	Use:   "update [token name]",
+	Use:   "update [token ID]",
 	Short: "Update a token",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -366,17 +429,111 @@ func runTokenInfoCmd(cctx *TokenCommandContext) error {
 
 	fmt.Println("")
 
-	// Schema
-	if len(token.Products) > 0 {
-		fmt.Println("")
-		fmt.Println("Accessible products:")
-		fmt.Println("")
+	// Permissions
+	if len(token.Permissions) > 0 {
+		for permission, _ := range token.Permissions {
+			fmt.Println("")
+			fmt.Println("Permissions:")
+			fmt.Println("")
 
-		for _, p := range token.Products {
-			fmt.Println(p.Name)
+			fmt.Println(permission)
 		}
 
 		fmt.Println("")
+	}
+
+	return nil
+}
+
+var tokenGrantCmd = &cobra.Command{
+	Use:   "grant [token ID] [permission]",
+	Short: "Grant permission to specific token",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runTokenCmd(runTokenGrantCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runTokenGrantCmd(cctx *TokenCommandContext) error {
+
+	tokenID := cctx.Args[0]
+	permission := cctx.Args[1]
+
+	// Getting token information
+	token, err := cctx.Token.GetClient().GetToken(tokenID)
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return errors.New(fmt.Sprintf("Not found token \"%s\"\n", tokenID))
+	}
+
+	// Permission exists already
+	if token.Permissions == nil {
+		token.Permissions = make(map[string]*token_sdk.Permission)
+	}
+
+	if _, ok := token.Permissions[permission]; ok {
+		return nil
+	}
+
+	// Add permission to token setting
+	token.Permissions[permission] = &token_sdk.Permission{}
+
+	// Update
+	_, err = cctx.Token.GetClient().UpdateToken(tokenID, token)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var tokenRevokeCmd = &cobra.Command{
+	Use:   "revoke [token ID] [permission]",
+	Short: "Revoke permission from specific token",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		if err := runTokenCmd(runTokenRevokeCmd, cmd, args); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+func runTokenRevokeCmd(cctx *TokenCommandContext) error {
+
+	tokenID := cctx.Args[0]
+	permission := cctx.Args[1]
+
+	// Getting token information
+	token, err := cctx.Token.GetClient().GetToken(tokenID)
+	if err != nil {
+		cctx.Cmd.SilenceUsage = true
+		return errors.New(fmt.Sprintf("Not found token \"%s\"\n", tokenID))
+	}
+
+	// Permission exists already
+	if token.Permissions == nil {
+		return nil
+	}
+
+	if _, ok := token.Permissions[permission]; !ok {
+		return nil
+	}
+
+	// Revoke permission
+	delete(token.Permissions, permission)
+
+	// Update
+	_, err = cctx.Token.GetClient().UpdateToken(tokenID, token)
+	if err != nil {
+		return err
 	}
 
 	return nil

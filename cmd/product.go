@@ -235,6 +235,7 @@ func runProductListCmd(cctx *ProductCommandContext) error {
 
 	products, err := cctx.Product.GetClient().ListProducts()
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return err
 	}
 
