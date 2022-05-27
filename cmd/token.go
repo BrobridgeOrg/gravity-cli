@@ -178,6 +178,7 @@ func runTokenListCmd(cctx *TokenCommandContext) error {
 
 	tokens, err := cctx.Token.GetClient().ListTokens()
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return err
 	}
 
@@ -291,6 +292,7 @@ func runTokenDeleteCmd(cctx *TokenCommandContext) error {
 
 	err := cctx.Token.GetClient().DeleteToken(tokenID)
 	if err != nil {
+		cctx.Cmd.SilenceUsage = true
 		return err
 	}
 
@@ -319,7 +321,7 @@ func runTokenUpdateCmd(cctx *TokenCommandContext) error {
 	changed := false
 
 	// Getting token information
-	token, err := cctx.Token.GetClient().GetToken(tokenID)
+	_, tokenSetting, err := cctx.Token.GetClient().GetToken(tokenID)
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found token \"%s\"\n", tokenID))
@@ -327,13 +329,13 @@ func runTokenUpdateCmd(cctx *TokenCommandContext) error {
 
 	// Update description
 	if cctx.Cmd.Flags().Changed("desc") {
-		token.Description = tokenDesc
+		tokenSetting.Description = tokenDesc
 		changed = true
 	}
 
 	// Update enabled
 	if cctx.Cmd.Flags().Changed("enabled") {
-		token.Enabled = tokenEnabled
+		tokenSetting.Enabled = tokenEnabled
 		changed = true
 	}
 
@@ -343,7 +345,7 @@ func runTokenUpdateCmd(cctx *TokenCommandContext) error {
 	}
 
 	// Update
-	_, err = cctx.Token.GetClient().UpdateToken(tokenID, token)
+	_, err = cctx.Token.GetClient().UpdateToken(tokenID, tokenSetting)
 	if err != nil {
 		return err
 	}
@@ -370,7 +372,7 @@ func runTokenInfoCmd(cctx *TokenCommandContext) error {
 	tokenID := cctx.Args[0]
 
 	// Getting token information
-	token, err := cctx.Token.GetClient().GetToken(tokenID)
+	token, tokenSetting, err := cctx.Token.GetClient().GetToken(tokenID)
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found token \"%s\"\n", tokenID))
@@ -392,16 +394,16 @@ func runTokenInfoCmd(cctx *TokenCommandContext) error {
 	// Basic information
 	table.Append([]string{
 		"ID:",
-		token.ID,
+		tokenSetting.ID,
 	})
 
 	table.Append([]string{
 		"Description:",
-		token.Description,
+		tokenSetting.Description,
 	})
 
 	var status string
-	if token.Enabled {
+	if tokenSetting.Enabled {
 		status = "enabled"
 	} else {
 		status = "disabled"
@@ -414,15 +416,19 @@ func runTokenInfoCmd(cctx *TokenCommandContext) error {
 
 	table.Append([]string{
 		"Updated:",
-		token.UpdatedAt.String(),
+		tokenSetting.UpdatedAt.String(),
 	})
 
 	table.Append([]string{
 		"Created:",
-		token.CreatedAt.String(),
+		tokenSetting.CreatedAt.String(),
 	})
 
-	fmt.Printf("Information for Token %s\n\n", tokenID)
+	fmt.Printf("Information for Token %s\n\n", tokenSetting.ID)
+
+	fmt.Printf("Token:\n\n")
+	fmt.Printf("%s\n\n", token)
+
 	fmt.Printf("Configuration:\n\n")
 
 	table.Render()
@@ -430,8 +436,8 @@ func runTokenInfoCmd(cctx *TokenCommandContext) error {
 	fmt.Println("")
 
 	// Permissions
-	if len(token.Permissions) > 0 {
-		for permission, _ := range token.Permissions {
+	if len(tokenSetting.Permissions) > 0 {
+		for permission, _ := range tokenSetting.Permissions {
 			fmt.Println("")
 			fmt.Println("Permissions:")
 			fmt.Println("")
@@ -465,26 +471,26 @@ func runTokenGrantCmd(cctx *TokenCommandContext) error {
 	permission := cctx.Args[1]
 
 	// Getting token information
-	token, err := cctx.Token.GetClient().GetToken(tokenID)
+	_, tokenSetting, err := cctx.Token.GetClient().GetToken(tokenID)
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found token \"%s\"\n", tokenID))
 	}
 
 	// Permission exists already
-	if token.Permissions == nil {
-		token.Permissions = make(map[string]*token_sdk.Permission)
+	if tokenSetting.Permissions == nil {
+		tokenSetting.Permissions = make(map[string]*token_sdk.Permission)
 	}
 
-	if _, ok := token.Permissions[permission]; ok {
+	if _, ok := tokenSetting.Permissions[permission]; ok {
 		return nil
 	}
 
 	// Add permission to token setting
-	token.Permissions[permission] = &token_sdk.Permission{}
+	tokenSetting.Permissions[permission] = &token_sdk.Permission{}
 
 	// Update
-	_, err = cctx.Token.GetClient().UpdateToken(tokenID, token)
+	_, err = cctx.Token.GetClient().UpdateToken(tokenID, tokenSetting)
 	if err != nil {
 		return err
 	}
@@ -512,26 +518,26 @@ func runTokenRevokeCmd(cctx *TokenCommandContext) error {
 	permission := cctx.Args[1]
 
 	// Getting token information
-	token, err := cctx.Token.GetClient().GetToken(tokenID)
+	_, tokenSetting, err := cctx.Token.GetClient().GetToken(tokenID)
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found token \"%s\"\n", tokenID))
 	}
 
 	// Permission exists already
-	if token.Permissions == nil {
+	if tokenSetting.Permissions == nil {
 		return nil
 	}
 
-	if _, ok := token.Permissions[permission]; !ok {
+	if _, ok := tokenSetting.Permissions[permission]; !ok {
 		return nil
 	}
 
 	// Revoke permission
-	delete(token.Permissions, permission)
+	delete(tokenSetting.Permissions, permission)
 
 	// Update
-	_, err = cctx.Token.GetClient().UpdateToken(tokenID, token)
+	_, err = cctx.Token.GetClient().UpdateToken(tokenID, tokenSetting)
 	if err != nil {
 		return err
 	}
