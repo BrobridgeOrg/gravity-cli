@@ -54,6 +54,8 @@ func runDomainCmd(fn domainCmdFunc, cmd *cobra.Command, args []string) error {
 	var cctx *DomainCommandContext
 
 	config.SetHost(host)
+	config.SetDomain(domain)
+	config.SetAccessToken(accessToken)
 
 	app := fx.New(
 		fx.Supply(config),

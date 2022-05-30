@@ -11,6 +11,7 @@ import (
 var config *configs.Config
 var host string
 var domain string
+var accessToken string
 
 var RootCmd = &cobra.Command{
 	Use:   "gravity-cli",
@@ -32,6 +33,7 @@ func init() {
 
 	RootCmd.PersistentFlags().StringVarP(&host, "host", "s", "0.0.0.0:32803", "Specify server address")
 	RootCmd.PersistentFlags().StringVarP(&domain, "domain", "d", "default", "Specify data domain")
+	RootCmd.PersistentFlags().StringVarP(&accessToken, "token", "t", "", "Specify access token")
 }
 
 func run() error {

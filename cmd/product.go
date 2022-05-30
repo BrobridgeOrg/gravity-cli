@@ -180,6 +180,8 @@ func runProductCmd(fn productCmdFunc, cmd *cobra.Command, args []string) error {
 	var cctx *ProductCommandContext
 
 	config.SetHost(host)
+	config.SetDomain(domain)
+	config.SetAccessToken(accessToken)
 
 	app := fx.New(
 		fx.Supply(config),

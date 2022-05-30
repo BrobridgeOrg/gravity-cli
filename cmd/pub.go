@@ -51,6 +51,8 @@ func runPubCmd(fn pubCmdFunc, cmd *cobra.Command, args []string) error {
 	var cctx *PubCommandContext
 
 	config.SetHost(host)
+	config.SetDomain(domain)
+	config.SetAccessToken(accessToken)
 
 	app := fx.New(
 		fx.Supply(config),

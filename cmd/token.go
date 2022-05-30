@@ -68,6 +68,8 @@ func runTokenCmd(fn tokenCmdFunc, cmd *cobra.Command, args []string) error {
 	var cctx *TokenCommandContext
 
 	config.SetHost(host)
+	config.SetDomain(domain)
+	config.SetAccessToken(accessToken)
 
 	app := fx.New(
 		fx.Supply(config),

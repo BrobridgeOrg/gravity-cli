@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/BrobridgeOrg/gravity-cli/pkg/configs"
 	"github.com/BrobridgeOrg/gravity-sdk/core"
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
@@ -19,21 +20,24 @@ const (
 	DefaultPingInterval        = 10
 	DefaultMaxPingsOutstanding = 3
 	DefaultMaxReconnects       = -1
-	DefaultAccessKey           = ""
+	DefaultAccessToken         = ""
 	DefaultDomain              = "default"
 )
 
 type Connector struct {
+	config *configs.Config
 	client *core.Client
 	logger *zap.Logger
 	domain string
 }
 
-func New(lifecycle fx.Lifecycle, l *zap.Logger) *Connector {
+func New(lifecycle fx.Lifecycle, config *configs.Config, l *zap.Logger) *Connector {
 
 	logger = l.Named("Connector")
 
-	c := &Connector{}
+	c := &Connector{
+		config: config,
+	}
 
 	//c.initialize()
 
@@ -56,7 +60,7 @@ func (c *Connector) initialize() error {
 
 	// default domain and access key
 	viper.SetDefault("gravity.domain", DefaultDomain)
-	viper.SetDefault("gravity.accessKey", DefaultAccessKey)
+	viper.SetDefault("gravity.accessToken", DefaultAccessToken)
 
 	// default settings
 	viper.SetDefault("gravity.host", DefaultHost)
@@ -84,7 +88,7 @@ func (c *Connector) initialize() error {
 func (c *Connector) CreateClient() (*core.Client, error) {
 
 	// Read configs
-	//	accessKey := viper.GetString("gravity.accessKey")
+	accessToken := viper.GetString("gravity.accessToken")
 	host := viper.GetString("gravity.host")
 	port := viper.GetInt("gravity.port")
 	pingInterval := viper.GetInt64("gravity.pingInterval")
@@ -93,13 +97,14 @@ func (c *Connector) CreateClient() (*core.Client, error) {
 
 	// Preparing options
 	options := core.NewOptions()
+	options.Token = accessToken
 	options.PingInterval = time.Duration(pingInterval) * time.Second
 	options.MaxPingsOutstanding = maxPingsOutstanding
 	options.MaxReconnects = maxReconnects
 
 	address := fmt.Sprintf("%s:%d", host, port)
 
-	//fmt.Printf("Connecting to Gravity Network: %s/%s\n", address, domain)
+	//fmt.Printf("Connecting to Gravity Network: %s\n", address)
 
 	client := core.NewClient()
 	err := client.Connect(address, options)
