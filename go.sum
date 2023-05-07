@@ -53,8 +53,10 @@ github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9/go.mod h1:bOv
 github.com/BrobridgeOrg/compton v0.0.0-20220315055918-5c0ee958b7d2/go.mod h1:BIpXs8Ch8yH9ruVK/QI36Vin1wWkut7J81K9dk92S20=
 github.com/BrobridgeOrg/compton v0.0.0-20220617174904-7083c8a5102d h1:4AkkcvBq3oR9A88IK9z72Ok+7OARqd4u/GTdCBDQPZ8=
 github.com/BrobridgeOrg/compton v0.0.0-20220617174904-7083c8a5102d/go.mod h1:BIpXs8Ch8yH9ruVK/QI36Vin1wWkut7J81K9dk92S20=
-github.com/BrobridgeOrg/gravity-sdk v0.0.51-0.20220927071456-6af137a2b5d9 h1:NxPTUQsNG2eGqjbh9YhagpDUnYxqGz4Spy4KwkUly8Q=
-github.com/BrobridgeOrg/gravity-sdk v0.0.51-0.20220927071456-6af137a2b5d9/go.mod h1:jNxMus78fmpD9Fb+dqJYzzOJwPe6bgUhbVqpXrWcOhY=
+github.com/BrobridgeOrg/gravity-sdk/v2 v2.0.1 h1:U6XNHZmk6z8PmsetUClrwGvmWwdGBW/0I7jufDrAAhg=
+github.com/BrobridgeOrg/gravity-sdk/v2 v2.0.1/go.mod h1:sQ0KBp/ek+IdFxuteRBRApf6IFeA2HcsXZ0GFDMDYG0=
+github.com/BrobridgeOrg/gravity-sdk/v2 v2.0.2 h1:jpvq5Eg7Z3CsCrCxPUgIDBkXCH0/LaqdC84OoZ2LiOc=
+github.com/BrobridgeOrg/gravity-sdk/v2 v2.0.2/go.mod h1:sQ0KBp/ek+IdFxuteRBRApf6IFeA2HcsXZ0GFDMDYG0=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/CloudyKit/fastprinter v0.0.0-20170127035650-74b38d55f37a/go.mod h1:EFZQ978U7x8IRnstaskI3IysnWY5Ao3QgZUKOXlsAdw=
@@ -129,6 +131,8 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/dgraph-io/badger v1.6.0/go.mod h1:zwt7syl517jmP8s94KqSxTlM6IMsdhYy6psNgSztDR4=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
+github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
+github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385/go.mod h1:0vRUJqYpeSZifjYj7uP3BG/gKcuzL9xWVV/Y+cK33KM=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=

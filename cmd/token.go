@@ -11,7 +11,7 @@ import (
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/logger"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/token"
-	token_sdk "github.com/BrobridgeOrg/gravity-sdk/token"
+	token_sdk "github.com/BrobridgeOrg/gravity-sdk/v2/token"
 	"github.com/google/uuid"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"

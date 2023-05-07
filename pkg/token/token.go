@@ -6,7 +6,7 @@ import (
 
 	"github.com/BrobridgeOrg/gravity-cli/pkg/configs"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
-	"github.com/BrobridgeOrg/gravity-sdk/token"
+	"github.com/BrobridgeOrg/gravity-sdk/v2/token"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )

@@ -7,7 +7,7 @@ import (
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/logger"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/product"
-	adapter_sdk "github.com/BrobridgeOrg/gravity-sdk/adapter"
+	adapter_sdk "github.com/BrobridgeOrg/gravity-sdk/v2/adapter"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 	"go.uber.org/zap"

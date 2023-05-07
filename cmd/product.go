@@ -15,9 +15,10 @@ import (
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/logger"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/product"
-	product_sdk "github.com/BrobridgeOrg/gravity-sdk/product"
-	subscriber_sdk "github.com/BrobridgeOrg/gravity-sdk/subscriber"
-	gravity_sdk_types_product_event "github.com/BrobridgeOrg/gravity-sdk/types/product_event"
+	product_sdk "github.com/BrobridgeOrg/gravity-sdk/v2/product"
+	subscriber_sdk "github.com/BrobridgeOrg/gravity-sdk/v2/subscriber"
+	gravity_sdk_types_product_event "github.com/BrobridgeOrg/gravity-sdk/v2/types/product_event"
+	"github.com/docker/go-units"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/olekukonko/tablewriter"
@@ -252,6 +253,8 @@ func runProductListCmd(cctx *ProductCommandContext) error {
 		"Description",
 		"Status",
 		"Rules",
+		"Events",
+		"Size",
 		"Updated",
 		"Created",
 	})
@@ -268,20 +271,25 @@ func runProductListCmd(cctx *ProductCommandContext) error {
 	table.SetNoWhiteSpace(true)
 
 	for _, product := range products {
+
+		setting := product.Setting
+
 		var status string
-		if product.Enabled {
+		if setting.Enabled {
 			status = "enabled"
 		} else {
 			status = "disabled"
 		}
 
 		table.Append([]string{
-			product.Name,
-			product.Description,
+			setting.Name,
+			setting.Description,
 			status,
-			fmt.Sprintf("%d", len(product.Rules)),
-			product.UpdatedAt.String(),
-			product.CreatedAt.String(),
+			fmt.Sprintf("%d", len(setting.Rules)),
+			fmt.Sprintf("%d", product.State.EventCount),
+			units.HumanSize(float64(product.State.Bytes)),
+			setting.UpdatedAt.String(),
+			setting.CreatedAt.String(),
 		})
 	}
 
@@ -400,13 +408,13 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 
 	// Update description
 	if cctx.Cmd.Flags().Changed("desc") {
-		product.Description = productDesc
+		product.Setting.Description = productDesc
 		changed = true
 	}
 
 	// Update enabled
 	if cctx.Cmd.Flags().Changed("enabled") {
-		product.Enabled = productEnabled
+		product.Setting.Enabled = productEnabled
 		changed = true
 	}
 
@@ -417,7 +425,7 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 			return err
 		}
 
-		product.Schema = schema
+		product.Setting.Schema = schema
 		changed = true
 	}
 
@@ -426,12 +434,12 @@ func runProductUpdateCmd(cctx *ProductCommandContext) error {
 		return nil
 	}
 
-	product.Stream = fmt.Sprintf(productEventStream, domain, productName)
+	product.Setting.Stream = fmt.Sprintf(productEventStream, domain, productName)
 
-	product.EnabledSnapshot = true
+	product.Setting.EnabledSnapshot = true
 
 	// Update
-	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product.Setting)
 	if err != nil {
 		return err
 	}
@@ -506,19 +514,21 @@ func runProductInfoCmd(cctx *ProductCommandContext) error {
 	table.SetTablePadding("\t")
 	//table.SetNoWhiteSpace(true)
 
-	// Basic information
+	// Configuration
+	setting := product.Setting
+
 	table.Append([]string{
 		"Name:",
-		product.Name,
+		setting.Name,
 	})
 
 	table.Append([]string{
 		"Description:",
-		product.Description,
+		setting.Description,
 	})
 
 	var status string
-	if product.Enabled {
+	if setting.Enabled {
 		status = "enabled"
 	} else {
 		status = "disabled"
@@ -531,17 +541,17 @@ func runProductInfoCmd(cctx *ProductCommandContext) error {
 
 	table.Append([]string{
 		"Stream:",
-		product.Stream,
+		setting.Stream,
 	})
 
 	table.Append([]string{
 		"Updated:",
-		product.UpdatedAt.String(),
+		setting.UpdatedAt.String(),
 	})
 
 	table.Append([]string{
 		"Created:",
-		product.CreatedAt.String(),
+		setting.CreatedAt.String(),
 	})
 
 	fmt.Printf("Information for Product %s\n\n", productName)
@@ -551,12 +561,41 @@ func runProductInfoCmd(cctx *ProductCommandContext) error {
 
 	fmt.Println("")
 
+	// Render states
+	fmt.Printf("State:\n\n")
+
+	table.ClearRows()
+
+	table.Append([]string{
+		"Bytes:",
+		fmt.Sprintf("%d bytes", product.State.Bytes),
+	})
+
+	table.Append([]string{
+		"Events:",
+		fmt.Sprintf("%d events", product.State.EventCount),
+	})
+
+	table.Append([]string{
+		"First time:",
+		product.State.FirstTime.String(),
+	})
+
+	table.Append([]string{
+		"Last time:",
+		product.State.LastTime.String(),
+	})
+
+	table.Render()
+
+	fmt.Println("")
+
 	// Schema
-	if product.Schema != nil {
+	if setting.Schema != nil {
 		fmt.Println("")
 		fmt.Println("Schema:")
 		fmt.Println("")
-		schema, _ := json.MarshalIndent(product.Schema, "", "    ")
+		schema, _ := json.MarshalIndent(setting.Schema, "", "    ")
 		fmt.Println(string(schema))
 		fmt.Println("")
 	}
@@ -685,12 +724,12 @@ func runProductRuleAddCmd(cctx *ProductCommandContext) error {
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
-	if product.Rules == nil {
-		product.Rules = make(map[string]*product_sdk.Rule)
+	if product.Setting.Rules == nil {
+		product.Setting.Rules = make(map[string]*product_sdk.Rule)
 	} else {
 
 		// Check whether rule does exist or not
-		_, ok := product.Rules[ruleName]
+		_, ok := product.Setting.Rules[ruleName]
 		if ok {
 			cctx.Cmd.SilenceUsage = true
 			return errors.New(fmt.Sprintf("Rule \"%s\" exists already\n", ruleName))
@@ -742,10 +781,10 @@ func runProductRuleAddCmd(cctx *ProductCommandContext) error {
 	}
 
 	// Add to rule set
-	product.Rules[rule.Name] = rule
+	product.Setting.Rules[rule.Name] = rule
 
 	// Update
-	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product.Setting)
 	if err != nil {
 		return err
 	}
@@ -784,13 +823,13 @@ func runProductRuleUpdateCmd(cctx *ProductCommandContext) error {
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
-	if product.Rules == nil {
+	if product.Setting.Rules == nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
-	rule, ok := product.Rules[ruleName]
+	rule, ok := product.Setting.Rules[ruleName]
 	if !ok {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
@@ -854,7 +893,7 @@ func runProductRuleUpdateCmd(cctx *ProductCommandContext) error {
 	rule.UpdatedAt = time.Now()
 
 	// Update
-	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product.Setting)
 	if err != nil {
 		return err
 	}
@@ -892,7 +931,7 @@ func runProductRuleListCmd(cctx *ProductCommandContext) error {
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
-	if product.Rules == nil {
+	if product.Setting.Rules == nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New("No available rules")
 	}
@@ -920,7 +959,7 @@ func runProductRuleListCmd(cctx *ProductCommandContext) error {
 	table.SetTablePadding("\t")
 	table.SetNoWhiteSpace(true)
 
-	for _, rule := range product.Rules {
+	for _, rule := range product.Setting.Rules {
 		var pk string
 		if len(rule.PrimaryKey) == 0 {
 			pk = "n/a"
@@ -983,22 +1022,22 @@ func runProductRuleDeleteCmd(cctx *ProductCommandContext) error {
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
-	if product.Rules == nil {
+	if product.Setting.Rules == nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
-	_, ok := product.Rules[ruleName]
+	_, ok := product.Setting.Rules[ruleName]
 	if !ok {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
-	delete(product.Rules, ruleName)
+	delete(product.Setting.Rules, ruleName)
 
 	// Update
-	_, err = cctx.Product.GetClient().UpdateProduct(productName, product)
+	_, err = cctx.Product.GetClient().UpdateProduct(productName, product.Setting)
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
 		return err
@@ -1038,13 +1077,13 @@ func runProductRuleInfoCmd(cctx *ProductCommandContext) error {
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
-	if product.Rules == nil {
+	if product.Setting.Rules == nil {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
 	}
 
 	// Check whether rule does exist or not
-	rule, ok := product.Rules[ruleName]
+	rule, ok := product.Setting.Rules[ruleName]
 	if !ok {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New(fmt.Sprintf("Not found rule \"%s\"\n", ruleName))
@@ -1177,7 +1216,7 @@ func runProductSnapshotCmd(cctx *ProductCommandContext) error {
 		return errors.New(fmt.Sprintf("Not found product \"%s\"\n", productName))
 	}
 
-	if !product.EnabledSnapshot {
+	if !product.Setting.EnabledSnapshot {
 		cctx.Cmd.SilenceUsage = true
 		return errors.New("Product snapshot is not enabled")
 	}

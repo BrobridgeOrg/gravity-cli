@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/BrobridgeOrg/gravity-cli/pkg/configs"
-	"github.com/BrobridgeOrg/gravity-sdk/core"
+	"github.com/BrobridgeOrg/gravity-sdk/v2/core"
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
