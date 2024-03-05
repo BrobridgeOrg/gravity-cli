@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	record_type "github.com/BrobridgeOrg/compton/types/record"
+	//	record_type "github.com/BrobridgeOrg/compton/types/record"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/configs"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-cli/pkg/logger"
@@ -18,6 +18,7 @@ import (
 	product_sdk "github.com/BrobridgeOrg/gravity-sdk/v2/product"
 	subscriber_sdk "github.com/BrobridgeOrg/gravity-sdk/v2/subscriber"
 	gravity_sdk_types_product_event "github.com/BrobridgeOrg/gravity-sdk/v2/types/product_event"
+	record_type "github.com/BrobridgeOrg/gravity-sdk/v2/types/record"
 	"github.com/docker/go-units"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
@@ -669,6 +670,7 @@ func runProductSubCmd(cctx *ProductCommandContext) error {
 
 		data, _ := json.MarshalIndent(event, "", "  ")
 		fmt.Println(string(data))
+		msg.Ack()
 	}, subscriber_sdk.Partition(productSubscriberPartitions...), subscriber_sdk.StartSequence(productSubscriberStartSeq))
 	if err != nil {
 		cctx.Cmd.SilenceUsage = true
@@ -676,8 +678,6 @@ func runProductSubCmd(cctx *ProductCommandContext) error {
 	}
 
 	select {}
-
-	return nil
 }
 
 var productRuleCmd = &cobra.Command{
