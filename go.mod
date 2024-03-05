@@ -3,7 +3,7 @@ module github.com/BrobridgeOrg/gravity-cli
 go 1.21
 
 require (
-	github.com/BrobridgeOrg/gravity-sdk/v2 v2.0.3
+	github.com/BrobridgeOrg/gravity-sdk/v2 v2.0.7
 	github.com/docker/go-units v0.5.0
 	github.com/google/uuid v1.4.0
 	github.com/nats-io/nats.go v1.33.1
@@ -48,4 +48,4 @@ require (
 
 // replace github.com/BrobridgeOrg/compton => ../../compton
 
-replace github.com/BrobridgeOrg/gravity-sdk/v2 => ../gravity-sdk
+// replace github.com/BrobridgeOrg/gravity-sdk/v2 => ../gravity-sdk
