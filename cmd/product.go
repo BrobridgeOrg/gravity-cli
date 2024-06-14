@@ -79,7 +79,7 @@ func init() {
 	// Update product
 	productCmd.AddCommand(productUpdateCmd)
 	productUpdateCmd.Flags().StringVar(&productDesc, "desc", "", "Specify description")
-	productUpdateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable produc")
+	productUpdateCmd.Flags().BoolVar(&productEnabled, "enabled", false, "Enable product (default false)")
 	productUpdateCmd.Flags().StringVar(&productSchemaFile, "schema", "", "Load schema from specific file")
 
 	// Delete and purge product
