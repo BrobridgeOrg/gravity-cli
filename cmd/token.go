@@ -44,12 +44,12 @@ func init() {
 	// Create
 	tokenCmd.AddCommand(tokenCreateCmd)
 	tokenCreateCmd.Flags().StringVar(&tokenDesc, "desc", "", "Specify description")
-	tokenCreateCmd.Flags().BoolVar(&tokenEnabled, "enabled", true, "Enable token (default true)")
+	tokenCreateCmd.Flags().BoolVar(&tokenEnabled, "enabled", true, "Enable token")
 
 	// Update
 	tokenCmd.AddCommand(tokenUpdateCmd)
 	tokenUpdateCmd.Flags().StringVar(&tokenDesc, "desc", "", "Specify description")
-	tokenUpdateCmd.Flags().BoolVar(&tokenEnabled, "enabled", true, "Enable token (default true)")
+	tokenUpdateCmd.Flags().BoolVar(&tokenEnabled, "enabled", true, "Enable token")
 
 	// Grant
 	tokenCmd.AddCommand(tokenGrantCmd)
